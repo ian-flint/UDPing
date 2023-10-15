@@ -1,0 +1,37 @@
+#!/usr/bin/python3
+
+import getopt
+import sys
+
+arglist = sys.argv[1:]
+options = "p:vc:h"
+
+port = 9000
+verbose = False
+configfile = "udping.conf"
+
+def usage():
+    print("Usage: udping_controller [-p <port>] [-c <configfile>] [-v]")
+    print("   -p: Listening Port (default 9000)")
+    print("   -c: Config File (default udping.conf)")
+    sys.exit()
+
+try:
+    arguments, values = getopt.getopt(arglist, options)
+    for curarg,curval in arguments:
+        if curarg == "-p":
+            port = int(curval)
+        elif curarg == "-v":
+            verbose = True
+        elif curarg == "-c":
+            configfile = curval
+        elif curarg == "-h":
+            usage()
+except Exception as err:
+    print("Error: %s\n"%str(err))
+    usage()
+
+print ("Port: %d, Config: %s, Verbose: %d"%(port, configfile, verbose))
+
+# Set up server socket
+
