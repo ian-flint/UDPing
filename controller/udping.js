@@ -45,7 +45,14 @@ app.get("/deleteMesh", (req, res) => {
 });
 
 app.get("/updateMesh", (req, res) => {
-    db.updateMesh(req, res);
+    db.updateMesh(req, res, (err, msg) => {
+        if (err) {
+            console.log(err);
+            res.send(err);
+        } else {
+            res.send(msg);
+        }
+    });
 });
 
 app.listen(port, () => {

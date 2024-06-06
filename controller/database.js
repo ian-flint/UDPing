@@ -116,18 +116,17 @@ function deleteMesh (req, res) {
     });
 }
 
-function updateMesh (req, res) {
+function updateMesh (req, res, callback) {
     console.log("Updating mesh");
     if (!("mesh_id" in req.query)) {
-        var err = "No mesh specified";
-        console.log (err);
-        res.send("Error: " + err + "\n");
+        callback("No mesh specified", "");
+        return;
     }
     var updates = [];
     var params = [];
     for (field of ["name", "mechanism", "delay_ms", "reporting_interval_s"]) {
         if (field in req.query) {
-            console.log("setting " + field + " to " + req.query[field]);
+            //console.log("setting " + field + " to " + req.query[field]);
             updates.push(field + "= ?");
             params.push(req.query[field]);
         }
@@ -139,14 +138,13 @@ function updateMesh (req, res) {
         console.log(JSON.stringify(params));
         db.run(query, params, (err) => {
             if (err) {
-                console.log(err.message);
-                res.send(err.message + "\n");
+                callback(err.message + "\n", "");
             } else {
-                res.send("Ok");
+                callback(null, "Ok");
             }
         });
     } else {
-        res.send("Nothing to update");
+        callback("Nothing to update", "");
     }
 }
 
