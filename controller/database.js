@@ -6,156 +6,84 @@ var db = new sqlite3.Database("udping.db", (err) => {
     }
 });
 
-function getPeers (req, res) {
-    console.log("Getting peers");
-    var node_ids = [];
-    db.all("select mesh.name, mesh.mechanism, mesh.delay_ms, mesh.reporting_interval_s, node.ip, node.hostname from node, node_mesh, mesh where node.id = node_mesh.node_id and node_mesh.mesh_id = mesh.id and mesh.id in (select node_mesh.mesh_id from node, node_mesh where node.hostname = ? and node.id = node_mesh.node_id)", [req.query.hostname], (err, rows) => {
-        if (err) {
-            console.log(err);
-        }
-        res.send(JSON.stringify(rows, '', 2) + "\n");
-    });
+const queries = {
+    "/q/nodes": {"query": "select * from node"},
+    "/q/meshes": {"query": "select * from mesh"},
+    "/q/members": {"query": "select node.* from node_mesh, node where node.id = node_mesh.node_id and node_mesh.mesh_id = ?", "params": ["mesh_id"]},
+    "/q/peers": {"query": "select mesh.name, mesh.mechanism, mesh.delay_ms, mesh.reporting_interval_s, node.ip, node.hostname from node, node_mesh, mesh where node.id = node_mesh.node_id and node_mesh.mesh_id = mesh.id and mesh.id in (select node_mesh.mesh_id from node, node_mesh where node.hostname = ? and node.id = node_mesh.node_id)", "params": ["hostname"]},
+    "/r/addNode": {"query": "insert into node (ip, hostname) values (?, ?)", "params": ["ip", "hostname"]},
+    "/r/addMesh": {"query": "insert into mesh (name, mechanism, delay_ms, reporting_interval_s, created_by) values (?, ?, ?, ?, ?)", "params": ["name", "mechanism", "delay_ms", "reporting_interval_s", "created_by"], "defaults": {"mechanism": "udping", "delay_ms": 1000, "reporting_interval_s": 30}},
+    "/r/deleteMesh": {"query": "delete from mesh where id = ?", "params": ["mesh_id"]},
+    "/r/addNodeToMesh": {"query": "insert into node_mesh values (?, ?)", "params": ["node_id", "mesh_id"]},
+    "/r/deleteNodeFromMesh": {"query": "delete from node_mesh where node_id=? and mesh_id=?", "params": ["node_id", "mesh_id"]},
+    "/r/updateMesh": {"query": "update mesh set UPDATES where id = ?", "params": ["mesh_id"], "updateFields": ["name", "mechanism", "delay_ms", "reporting_interval_s"]},
 }
 
-function getNodes (req, res) {
-    console.log("Getting Nodes");
-    db.all("select * from node", (err, rows) => {
-        if (err) {
-            console.log(err);
-        }
-        res.send(JSON.stringify(rows, '', 2) + "\n");
-    });
+function api (req, res) {
+    res.send(JSON.stringify(queries, '', 2));
 }
 
-function getMeshes (req, res) {
-    console.log("Getting Meshes");
-    db.all("select * from mesh", (err, rows) => {
-        if (err) {
-            console.log(err);
-        }
-        res.send(JSON.stringify(rows, '', 2) + "\n");
-    });
-}
-
-function getMeshMembers (req, res) {
-    console.log("Getting Mesh Members");
-    db.all("select node.* from node_mesh, node where node.id = node_mesh.node_id and node_mesh.mesh_id = ?", [req.query.mesh_id], (err, rows) => {
-        if (err) {
-            console.log(err);
-        }
-        res.send(JSON.stringify(rows, '', 2) + "\n");
-    });
-}
-
-function addNode (req, res) {
-    console.log("Adding Node");
-    db.run("insert into node (ip, hostname) values (?, ?)", [req.query.ip, req.query.hostname], (err) => {
-        if (err) {
-            console.log(err.message);
-            res.send(err.message + "\n");
-        } else {
-            res.send("ok");
-        }
-    });
-}
-
-function addMesh (req, res) {
-    console.log("Adding Mesh");
-    if (!('mechanism' in req.query)) {
-        req.query.mechanism = "udping";
-    }
-    if (!("delay_ms" in req.query)) {
-        req.query.delay_ms = 1000;
-    }
-    if (!("reporting_interval_s" in req.query)) {
-        req.query.reporting_interval_s = 30;
-    }
-    db.run("insert into mesh (name, mechanism, delay_ms, reporting_interval_s, created_by) values (?, ?, ?, ?, ?)", [req.query.name, req.query.mechanism, req.query.delay_ms, req.query.reporting_interval_s, req.query.created_by], (err) => {
-        if (err) {
-            console.log(err.message);
-            res.send(err.message + "\n");
-        } else {
-            res.send("ok");
-        }
-    });
-}
-
-function addNodeToMesh (req, res) {
-    console.log("Adding node to mesh");
-    db.run("insert into node_mesh values ?, ?", [req.query.node_id, req.query.mesh_id], (err) => {
-        if (err) {
-            console.log(err.message);
-            res.send(err.message + "\n");
-        } else {
-            res.send("ok");
-        }
-    });
-}
-
-function deleteMesh (req, res) {
-    console.log("deleting mesh");
-    if (!("mesh_id" in req.query)) {
-        var err = "No mesh specified";
-        console.log (err);
-        res.send("Error: " + err + "\n");
-    }
-    db.run("delete from mesh where id = ?", [req.query.mesh_id], (err) => {
-        if (err) {
-            console.log(err.message);
-            res.send(err.message + "\n");
-        } else {
-            db.run("delete from node_mesh where mesh_id = ?", [req.query.mesh_id], (err) => {
-                if (err) {
-                    console.log(err.message);
-                    res.send(err.message + "\n");
-                } else {
-                    res.send("ok");
+function query (req, res) {
+    var path = req.path;
+    if (path in queries) {
+        console.log("Executing query " + path + ": " + queries[path].query);
+        var params = [];
+        var query = queries[path].query;
+        if ("updateFields" in queries[path]) {
+            var updates = [];
+            for (field of queries[path].updateFields) {
+                if (field in req.query) {
+                    console.log("Updating " + field + " to " + req.query[field]);
+                    updates.push(field + "= ?");
+                    params.push(req.query[field]);
                 }
+            }
+            if (updates.length == 0) {
+                console.log ("No fields to update");
+                res.send ("No fields to update\n");
+                return;
+            }
+            query = query.replace("UPDATES", updates.join(','));
+        }
+        if ("params" in queries[path]) {
+            for (param of queries[path].params) {
+                if (!(param in req.query)) {
+                    if (param in queries[path].defaults) {
+                        params.push(queries[path].defaults[param]);
+                    } else {
+                        var msg = "Parameter ${param} not found";
+                        console.log(msg);
+                        res.send(msg + "\n");
+                        return;
+                    }
+                } else {
+                    params.push(req.query[param]);
+                }
+            }
+        }
+        if (path[1] == 'q') {
+            db.all(query, params, (err, rows) => {
+                if (err) {
+                    console.log(err);
+                    res.send("Error: " + err + "\n");
+                    return;
+                }
+                res.send(JSON.stringify(rows, '', 2) + "\n");
+            });
+        } else {
+            db.run(query, params, (err) => {
+                if (err) {
+                    console.log(err);
+                    res.send("Error: " + err + "\n");
+                    return;
+                }
+                res.send("ok\n");
             });
         }
-    });
-}
-
-function updateMesh (req, res, callback) {
-    console.log("Updating mesh");
-    if (!("mesh_id" in req.query)) {
-        callback("No mesh specified", "");
-        return;
-    }
-    var updates = [];
-    var params = [];
-    for (field of ["name", "mechanism", "delay_ms", "reporting_interval_s"]) {
-        if (field in req.query) {
-            //console.log("setting " + field + " to " + req.query[field]);
-            updates.push(field + "= ?");
-            params.push(req.query[field]);
-        }
-    }
-    params.push (req.query.mesh_id);
-    if (updates.length > 0) {
-        var query = "update mesh set " + updates.join(',') + " where id = ?";
-        console.log(query);
-        console.log(JSON.stringify(params));
-        db.run(query, params, (err) => {
-            if (err) {
-                callback(err.message + "\n", "");
-            } else {
-                callback(null, "Ok");
-            }
-        });
-    } else {
-        callback("Nothing to update", "");
     }
 }
 
 module.exports = {
-        "getPeers": getPeers, 
-        "getNodes": getNodes,
-        "getMeshes": getMeshes,
-        "getMeshMembers": getMeshMembers,
-        "addNode": addNode,
-        "addMesh": addMesh,
-        "addNodeToMesh": addNodeToMesh,
-        "deleteMesh": deleteMesh,
-        "updateMesh": updateMesh,
+        "query": query,
+        "api": api,
 };

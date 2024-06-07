@@ -8,6 +8,8 @@ create table mesh (
     created_by varchar(64) not null
 );
 
+create unique index mesh_name on mesh(name);
+
 create table node (
     id integer not null primary key,
     ip varchar(16) not null,
@@ -24,3 +26,4 @@ create table node_mesh (
 
 create index node_mesh_node on node_mesh (node_id);
 create index node_mesh_mesh on node_mesh (mesh_id);
+create unique index node_mesh_pk on node_mesh (node_id, mesh_id);
