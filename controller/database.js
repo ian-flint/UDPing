@@ -19,11 +19,11 @@ const queries = {
     "/r/updateMesh": {"query": "update mesh set UPDATES where id = ?", "params": ["mesh_id"], "updateFields": ["name", "mechanism", "delay_ms", "reporting_interval_s"]},
 }
 
-function api (req, res) {
-    res.send(JSON.stringify(queries, '', 2));
+function api (req, res, callback) {
+    callback(JSON.stringify(queries, '', 2), 200);
 }
 
-function query (req, res) {
+function query (req, res, callback) {
     var path = req.path;
     if (path in queries) {
         console.log("Executing query " + path + ": " + queries[path].query);
@@ -40,7 +40,7 @@ function query (req, res) {
             }
             if (updates.length == 0) {
                 console.log ("No fields to update");
-                res.send ("No fields to update\n");
+                callback("No fields to update\n", 400);
                 return;
             }
             query = query.replace("UPDATES", updates.join(','));
@@ -48,12 +48,12 @@ function query (req, res) {
         if ("params" in queries[path]) {
             for (param of queries[path].params) {
                 if (!(param in req.query)) {
-                    if (param in queries[path].defaults) {
+                    if ("defaults" in queries[path] && param in queries[path].defaults) {
                         params.push(queries[path].defaults[param]);
                     } else {
-                        var msg = "Parameter ${param} not found";
+                        var msg = "Parameter " + param + " not found";
                         console.log(msg);
-                        res.send(msg + "\n");
+                        callback(msg + "\n", 400);
                         return;
                     }
                 } else {
@@ -65,19 +65,21 @@ function query (req, res) {
             db.all(query, params, (err, rows) => {
                 if (err) {
                     console.log(err);
-                    res.send("Error: " + err + "\n");
+                    callback("Error: " + err + "\n", 400);
                     return;
                 }
-                res.send(JSON.stringify(rows, '', 2) + "\n");
+                callback(JSON.stringify(rows, '', 2) + "\n", 200);
+                return;
             });
         } else {
             db.run(query, params, (err) => {
                 if (err) {
                     console.log(err);
-                    res.send("Error: " + err + "\n");
+                    callback("Error: " + err + "\n", 400);
                     return;
                 }
-                res.send("ok\n");
+                callback("Ok\n", 200);
+                return;
             });
         }
     }
