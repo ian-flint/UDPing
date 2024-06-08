@@ -17,6 +17,8 @@ const queries = {
     "/r/addNodeToMesh": {"query": "insert into node_mesh values (?, ?)", "params": ["node_id", "mesh_id"]},
     "/r/deleteNodeFromMesh": {"query": "delete from node_mesh where node_id=? and mesh_id=?", "params": ["node_id", "mesh_id"]},
     "/r/updateMesh": {"query": "update mesh set UPDATES where id = ?", "params": ["mesh_id"], "updateFields": ["name", "mechanism", "delay_ms", "reporting_interval_s"]},
+    "/r/updateNode": {"query": "update node set UPDATES where id = ?", "params": ["node_id"], "updateFields": ["hostname", "ip"]},
+    "/r/deleteNode": {"query": "delete from node where id = ?", "params": ["node_id"]},
 }
 
 function api (req, res, callback) {
