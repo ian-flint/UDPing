@@ -1,3 +1,26 @@
 button {
     width: 100px;
 }
+
+#overlay {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    opacity: 50%;
+    background-color: black;
+    visibility: hidden;
+}
+
+#editMeshMembers {
+    position: absolute;
+    top: 15%;
+    left: 15%;
+    width: 70%;
+    height: 70%;
+    background-color: white;
+    visibility: hidden;
+    overflow-y: scroll;
+}
+

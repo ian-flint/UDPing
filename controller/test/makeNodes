@@ -1,0 +1,6 @@
+#!/usr/bin/python3
+
+import os
+
+for x in range (1, 254):
+    os.system ("curl \"http://localhost:3000/r/addNode?hostname=test%d&ip=192.168.1.%d\""%(x, x))

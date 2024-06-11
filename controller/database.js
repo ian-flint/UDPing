@@ -19,6 +19,8 @@ const queries = {
     "/r/updateMesh": {"query": "update mesh set UPDATES where id = ?", "params": ["mesh_id"], "updateFields": ["name", "mechanism", "delay_ms", "reporting_interval_s"]},
     "/r/updateNode": {"query": "update node set UPDATES where id = ?", "params": ["node_id"], "updateFields": ["hostname", "ip"]},
     "/r/deleteNode": {"query": "delete from node where id = ?", "params": ["node_id"]},
+    "/r/deleteNodeMesh": {"query": "delete from node_mesh where node_id = ? or mesh_id = ?", "params": ["node_id", "mesh_id"], "defaults": {"node_id": "", "mesh_id": ""}},
+    "/q/nodeMeshSelector": {"query": "select id, ip, hostname, mesh_id from node left outer join node_mesh on node.id = node_mesh.node_id and node_mesh.mesh_id=? order by mesh_id desc, hostname", "params": ["mesh_id"]},
 }
 
 function api (req, res, callback) {
@@ -84,6 +86,10 @@ function query (req, res, callback) {
                 return;
             });
         }
+    } else {
+        console.log ("Unsupported query " + path);
+        callback("Unsupported query " + path + "\n", 400);
+        return;
     }
 }
 
