@@ -2,6 +2,20 @@ button {
     width: 100px;
 }
 
+.udp {
+    font-size: 36;
+    font-weight: 700;
+    font-style: italic;
+    color: green;
+}
+
+.ing {
+    font-size: 36;
+    font-weight: 700;
+    font-style: italic;
+    color: #333333;
+}
+
 #overlay {
     position: absolute;
     top: 0px;

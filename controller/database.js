@@ -7,8 +7,8 @@ var db = new sqlite3.Database("udping.db", (err) => {
 });
 
 const queries = {
-    "/q/nodes": {"query": "select * from node"},
-    "/q/meshes": {"query": "select * from mesh"},
+    "/q/nodes": {"query": "select * from node order by hostname"},
+    "/q/meshes": {"query": "select mesh.*, count(*) as node_count from mesh, node_mesh where mesh.id = node_mesh.mesh_id group by mesh.id order by name"},
     "/q/members": {"query": "select node.* from node_mesh, node where node.id = node_mesh.node_id and node_mesh.mesh_id = ?", "params": ["mesh_id"]},
     "/q/peers": {"query": "select mesh.name, mesh.mechanism, mesh.delay_ms, mesh.reporting_interval_s, node.ip, node.hostname from node, node_mesh, mesh where node.id = node_mesh.node_id and node_mesh.mesh_id = mesh.id and mesh.id in (select node_mesh.mesh_id from node, node_mesh where node.hostname = ? and node.id = node_mesh.node_id)", "params": ["hostname"]},
     "/r/addNode": {"query": "insert into node (ip, hostname) values (?, ?)", "params": ["ip", "hostname"]},

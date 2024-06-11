@@ -28,6 +28,7 @@ function showMeshes () {
             tr.append($("<th>").html("Mechanism"));
             tr.append($("<th>").html("Delay (ms)"));
             tr.append($("<th>").html("Reporting Interval (s)"));
+            tr.append($("<th>").html("Node Count"));
             t.append(tr);
             for (row of json) {
                 tr = $("<tr>").attr("id", row.id);
@@ -35,6 +36,7 @@ function showMeshes () {
                 tr.append($("<td>").html(row.mechanism).attr("id", "mechanism"));
                 tr.append($("<td>").html(row.delay_ms).attr("id", "delay_ms"));
                 tr.append($("<td>").html(row.reporting_interval_s).attr("id", "reporting_interval_s"));
+                tr.append($("<td>").html(row.node_count).attr("id", "node_count"));
                 tr.append($("<td>").attr("id", "saveCancel")
                                 .append($('<img src="images/edit.svg">').on("click", editMesh))
                                 .append($('<img src="images/file-text.svg">').on("click", editMeshMembers))
@@ -69,7 +71,7 @@ function showNodes () {
 
 function editMesh() {
     var cell = $(this).parent();
-    cell.parent().children(":not(#saveCancel)").each(makeEditable);
+    cell.parent().children(":not(#saveCancel, #node_count)").each(makeEditable);
     cell.html("")
         .append($('<img src="images/check.svg">').on("click", updateMesh))
         .append($('<img src="images/x.svg">').on("click", uneditMesh))
@@ -82,7 +84,7 @@ function updateMesh() {
     cell.html("")
             .append($('<img src="images/edit.svg">').on("click", editMesh))
             .append($('<img src="images/file-text.svg">').on("click", editMeshMembers));
-    cell.siblings().each(makeUneditable).each((index, item)=>{
+    cell.siblings(":not(#node_count)").each(makeUneditable).each((index, item)=>{
         obj[$(item).attr("id")] = $(item).html();
     });
     obj["mesh_id"] = cell.parent().attr("id");
@@ -323,4 +325,5 @@ function editMeshMembersEnd() {
     $("#overlay").css("visibility", "hidden");
     $("#editMeshMembers").css("visibility", "hidden");
     $("#editMeshMembers").html('');
+    showMeshes();
 }
