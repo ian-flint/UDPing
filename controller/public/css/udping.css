@@ -27,7 +27,7 @@ button {
     visibility: hidden;
 }
 
-#editMeshMembers {
+#editMembers {
     position: absolute;
     top: 15%;
     left: 15%;

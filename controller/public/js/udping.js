@@ -7,7 +7,7 @@ $(document).ready(()=>{
                         showPanel (ui.panel.attr("id"));
                         },
                    });
-    $("#overlay").on("click", editMeshMembersEnd);
+    $("#overlay").on("click", editMembersEnd);
 });
 
 function showPanel (id) {
@@ -61,7 +61,10 @@ function showNodes () {
                 tr = $("<tr>").attr("id", row.id);
                 tr.append($("<td>").html(row.hostname).attr("id", "hostname"));
                 tr.append($("<td>").html(row.ip).attr("id", "ip"));
-                tr.append($("<td>").attr("id", "saveCancel").append($('<img src="images/edit.svg">').on("click", editNode)));
+                tr.append($("<td>").attr("id", "saveCancel")
+                    .append($('<img src="images/edit.svg">').on("click", editNode))
+                    .append($('<img src="images/file-text.svg">').on("click", editMeshesByNode))
+                    );
                 t.append(tr);
             }
             t.append($("<tr>").append($("<td>").append($('<img src="images/plus.svg">').on("click", addNode))));
@@ -134,7 +137,8 @@ function updateNode() {
     var obj = {};
     var cell = $(this).parent();
     cell.html("")
-            .append($('<img src="images/edit.svg">').on("click", editNode));
+            .append($('<img src="images/edit.svg">').on("click", editNode))
+            .append($('<img src="images/file-text.svg">').on("click", editNode));
     cell.siblings().each(makeUneditable).each((index, item)=>{
         obj[$(item).attr("id")] = $(item).html();
     });
@@ -150,7 +154,8 @@ function updateNode() {
 function uneditNode() {
     var cell = $(this).parent();
     cell.html("")
-            .append($('<img src="images/edit.svg">').on("click", editNode));
+            .append($('<img src="images/edit.svg">').on("click", editNode))
+            .append($('<img src="images/file-text.svg">').on("click", editNode));
     cell.siblings().each(rollback);
 }
 function deleteNode() {
@@ -227,7 +232,8 @@ function addMeshSave() {
     var cell = $(this).parent();
     var that = this;
     cell.html("")
-            .append($('<img src="images/edit.svg">').on("click", editMesh));
+            .append($('<img src="images/edit.svg">').on("click", editMesh))
+            .append($('<img src="images/file-text.svg">').on("click", editMeshMembers));
     cell.siblings().each(makeUneditable).each((index, item)=>{
         obj[$(item).attr("id")] = $(item).html();
     });
@@ -245,10 +251,11 @@ function addMesh() {
     tr.append($("<td>").attr("id", "mechanism"));
     tr.append($("<td>").attr("id", "delay_ms"));
     tr.append($("<td>").attr("id", "reporting_interval_s"));
+    tr.append($("<td>").attr("id", "node_count"));
     tr.append($("<td>").attr("id", "saveCancel"));
     t.append(tr);
     $(this).parent().parent().before(tr);
-    tr.children(":not(#saveCancel)").each(makeEditable)
+    tr.children(":not(#saveCancel #node_count)").each(makeEditable)
     tr.children("#saveCancel").html("")
         .append($('<img src="images/check.svg">').on("click", addMeshSave))
         .append($('<img src="images/x.svg">').on("click", removeNewRow));
@@ -256,27 +263,27 @@ function addMesh() {
 
 function editMeshMembers() {
     $("#overlay").css("visibility", "visible");
-    $("#editMeshMembers").css("visibility", "visible");
+    $("#editMembers").css("visibility", "visible");
     var row = $(this).parent().parent();
     var mesh_id = row.attr("id");
-    if (mesh_id == "editMeshMembers") {
-        mesh_id = $("#editMeshMembers").attr("mesh_id");
+    if (mesh_id == "editMembers") {
+        mesh_id = $("#editMembers").attr("mesh_id");
     }
-    $("#editMeshMembers").attr("mesh_id", mesh_id);
+    $("#editMembers").attr("mesh_id", mesh_id);
     $.ajax({
         type: "GET",
         url: "/q/nodeMeshSelector",
         data: {mesh_id: mesh_id},
         dataType: "json"
     }).done((json) => {
-        $("#editMeshMembers").html('');
-        $("#editMeshMembers").append($('<div width=100% align=right>')
-            .append($('<img src="images/x.svg">').on("click", editMeshMembersEnd))
+        $("#editMembers").html('');
+        $("#editMembers").append($('<div width=100% align=right>')
+            .append($('<img src="images/x.svg">').on("click", editMembersEnd))
             .append($('<img src="images/refresh-cw.svg">').on("click", editMeshMembers)));
         var t = $("<table>").attr("id", mesh_id);
-        $("#editMeshMembers").append(t);
+        $("#editMembers").append(t);
         for (row of json) {
-            tr = $("<tr>").attr("id", row.id).on("click", toggleMeshMember);
+            tr = $("<tr>").attr("id", row.node_id).on("click", toggleMeshMember);
             if (row.mesh_id > 0) {
                 tr.css("font-weight", "700");
             } else {
@@ -285,6 +292,45 @@ function editMeshMembers() {
             tr.append($("<td>").html(row.hostname));
             tr.append($("<td>").html(row.ip));
             if (row.mesh_id > 0) {
+                tr.append($("<td>").attr("id", "edit").html('<image src="images/minus.svg">'));
+            } else {
+                tr.append($("<td>").attr("id", "edit").html('<image src="images/plus.svg">'));
+            }
+            t.append(tr);
+        }
+    });
+}
+
+function editMeshesByNode() {
+    $("#overlay").css("visibility", "visible");
+    $("#editMembers").css("visibility", "visible");
+    var row = $(this).parent().parent();
+    var node_id = row.attr("id");
+    if (node_id == "editMembers") {
+        node_id = $("#editMembers").attr("node_id");
+    }
+    $("#editMembers").attr("node_id", node_id);
+    $.ajax({
+        type: "GET",
+        url: "/q/nodeMeshByNode",
+        data: {node_id: node_id},
+        dataType: "json"
+    }).done((json) => {
+        $("#editMembers").html('');
+        $("#editMembers").append($('<div width=100% align=right>')
+            .append($('<img src="images/x.svg">').on("click", editMembersEnd))
+            .append($('<img src="images/refresh-cw.svg">').on("click", editMeshesByNode))); 
+        var t = $("<table>").attr("id", node_id);
+        $("#editMembers").append(t);
+        for (row of json) {
+            tr = $("<tr>").attr("id", row.mesh_id).on("click", toggleNodeMesh); 
+            if (row.node_id > 0) {
+                tr.css("font-weight", "700");
+            } else {
+                tr.css("font-weight", "400");
+            }
+            tr.append($("<td>").html(row.name));
+            if (row.node_id > 0) {
                 tr.append($("<td>").attr("id", "edit").html('<image src="images/minus.svg">'));
             } else {
                 tr.append($("<td>").attr("id", "edit").html('<image src="images/plus.svg">'));
@@ -320,10 +366,36 @@ function toggleMeshMember() {
     }
 }
 
+function toggleNodeMesh() {
+    var tr = $(this);
+    var mesh_id = tr.attr("id");
+    var node_id = tr.parent().attr("id");
+    var weight = tr.css("font-weight");
+    if (tr.css("font-weight") == "700") {
+        tr.css("font-weight", "400");
+        tr.children("#edit").html('<image src="images/plus.svg">');
+        $.ajax({
+            type: "GET",
+            url: "/r/deleteNodeFromMesh",
+            data: {mesh_id: mesh_id, node_id: node_id},
+            dataType: "json"
+        });
+    } else {
+        tr.css("font-weight", "700");
+        tr.children("#edit").html('<image src="images/minus.svg">');
+        $.ajax({
+            type: "GET",
+            url: "/r/addNodeToMesh",
+            data: {mesh_id: mesh_id, node_id: node_id},
+            dataType: "json"
+        });
+    }
+}
 
-function editMeshMembersEnd() {
+
+function editMembersEnd() {
     $("#overlay").css("visibility", "hidden");
-    $("#editMeshMembers").css("visibility", "hidden");
-    $("#editMeshMembers").html('');
+    $("#editMembers").css("visibility", "hidden");
+    $("#editMembers").html('');
     showMeshes();
 }

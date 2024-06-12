@@ -8,8 +8,8 @@ var db = new sqlite3.Database("udping.db", (err) => {
 
 const queries = {
     "/q/nodes": {"query": "select * from node order by hostname"},
-    "/q/meshes": {"query": "select mesh.*, count(*) as node_count from mesh, node_mesh where mesh.id = node_mesh.mesh_id group by mesh.id order by name"},
-    "/q/members": {"query": "select node.* from node_mesh, node where node.id = node_mesh.node_id and node_mesh.mesh_id = ?", "params": ["mesh_id"]},
+    "/q/meshes": {"query": "select mesh.*, (select count(*) from node_mesh where mesh_id = id) as node_count from mesh order by name"},
+    //"/q/members": {"query": "select node.* from node_mesh, node where node.id = node_mesh.node_id and node_mesh.mesh_id = ?", "params": ["mesh_id"]},
     "/q/peers": {"query": "select mesh.name, mesh.mechanism, mesh.delay_ms, mesh.reporting_interval_s, node.ip, node.hostname from node, node_mesh, mesh where node.id = node_mesh.node_id and node_mesh.mesh_id = mesh.id and mesh.id in (select node_mesh.mesh_id from node, node_mesh where node.hostname = ? and node.id = node_mesh.node_id)", "params": ["hostname"]},
     "/r/addNode": {"query": "insert into node (ip, hostname) values (?, ?)", "params": ["ip", "hostname"]},
     "/r/addMesh": {"query": "insert into mesh (name, mechanism, delay_ms, reporting_interval_s, created_by) values (?, ?, ?, ?, ?)", "params": ["name", "mechanism", "delay_ms", "reporting_interval_s", "created_by"], "defaults": {"mechanism": "udping", "delay_ms": 1000, "reporting_interval_s": 30}},
@@ -20,7 +20,8 @@ const queries = {
     "/r/updateNode": {"query": "update node set UPDATES where id = ?", "params": ["node_id"], "updateFields": ["hostname", "ip"]},
     "/r/deleteNode": {"query": "delete from node where id = ?", "params": ["node_id"]},
     "/r/deleteNodeMesh": {"query": "delete from node_mesh where node_id = ? or mesh_id = ?", "params": ["node_id", "mesh_id"], "defaults": {"node_id": "", "mesh_id": ""}},
-    "/q/nodeMeshSelector": {"query": "select id, ip, hostname, mesh_id from node left outer join node_mesh on node.id = node_mesh.node_id and node_mesh.mesh_id=? order by mesh_id desc, hostname", "params": ["mesh_id"]},
+    "/q/nodeMeshSelector": {"query": "select id as node_id, ip, hostname, mesh_id from node left outer join node_mesh on node.id = node_mesh.node_id and node_mesh.mesh_id=? order by mesh_id desc, hostname", "params": ["mesh_id"]},
+    "/q/nodeMeshByNode": {"query": "select id as mesh_id, name, node_id from mesh left outer join node_mesh on mesh.id = node_mesh.mesh_id and node_mesh.node_id=? order by node_id desc, name", "params": ["node_id"]},
 }
 
 function api (req, res, callback) {
