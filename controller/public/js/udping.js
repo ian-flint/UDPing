@@ -23,6 +23,7 @@ function showMeshes () {
     $.ajax({url: "/q/meshes", type: "GET", dataType: "JSON"})
         .done((json) => {
             t = $("<table>");
+            $("#meshes").append(t);
             tr = $("<tr>");
             tr.append($("<th>").html("Name"));
             tr.append($("<th>").html("Mechanism"));
@@ -44,7 +45,6 @@ function showMeshes () {
                 t.append(tr);
             }
             t.append($("<tr>").append($("<td>").append($('<img src="images/plus.svg">').on("click", addMesh))));
-            $("#meshes").append(t);
         });
 }
 
@@ -74,7 +74,13 @@ function showNodes () {
 
 function editMesh() {
     var cell = $(this).parent();
+    var mechanism = cell.siblings("#mechanism").html();
     cell.parent().children(":not(#saveCancel, #node_count)").each(makeEditable);
+    cell.siblings("#mechanism").html("").append($("<select>").val(mechanism)
+                                        .append($("<option>udping</option>"))
+                                        .append($("<option>ping</option>"))
+                                        );
+    cell.siblings("#mechanism").children("select").val(mechanism);
     cell.html("")
         .append($('<img src="images/check.svg">').on("click", updateMesh))
         .append($('<img src="images/x.svg">').on("click", uneditMesh))
@@ -87,6 +93,7 @@ function updateMesh() {
     cell.html("")
             .append($('<img src="images/edit.svg">').on("click", editMesh))
             .append($('<img src="images/file-text.svg">').on("click", editMeshMembers));
+    cell.siblings("#mechanism").html(cell.siblings("#mechanism").children("select").val());
     cell.siblings(":not(#node_count)").each(makeUneditable).each((index, item)=>{
         obj[$(item).attr("id")] = $(item).html();
     });
@@ -105,6 +112,7 @@ function uneditMesh() {
             .append($('<img src="images/edit.svg">').on("click", editMesh))
             .append($('<img src="images/file-text.svg">').on("click", editMeshMembers));
     cell.siblings().each(rollback);
+    cell.siblings("#mechanism").html(row.mechanism).attr("id", "mechanism");
 }
 function deleteMesh() {
     var row = $(this).parent().parent();

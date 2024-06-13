@@ -7,15 +7,14 @@ import threading
 import sqlite3
 
 arglist = sys.argv[1:]
-options = "p:vc:h"
+options = "vc:h"
 
 port = 9000
 verbose = False
 configfile = "udping.conf"
 
 def usage():
-    print("Usage: udping_controller [-p <port>] [-c <configfile>] [-v]")
-    print("   -p: Listening Port (default 9000)")
+    print("Usage: udping_controller [-c <configfile>] [-v]")
     print("   -c: Config File (default udping.conf)")
     sys.exit()
 
