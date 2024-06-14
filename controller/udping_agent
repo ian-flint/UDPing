@@ -1,0 +1,98 @@
+#!/usr/bin/python3
+
+import requests
+import getopt
+import sys
+import os
+import json
+import time
+import signal
+
+arglist = sys.argv[1:]
+options = "vc:h:?"
+
+controller = ''
+verbose = False
+hostname = os.uname().nodename
+
+children = {}
+
+def launchPing(signature, params):
+    print ("Launching child %s"%signature)
+    pid = os.fork()
+    if (pid > 0):
+        print ("Launched child with pid %d"%pid)
+        print (params)
+        children[signature] = params
+        children[signature]['pid'] = pid
+        return
+
+    elif (pid == 0):
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        while (True):
+            print ("Ping %s"%params['peer_ip'])
+            time.sleep(float(params["mesh_delay_ms"])/1000)
+
+def killPing(signature):
+    print ("Killing child %s"%signature)
+    print (children[signature])
+    os.kill(children[signature]['pid'], signal.SIGTERM)
+    del children[signature]
+
+def update(controller, hostname):
+#    print ("Connecting to %s as %s"%(controller, hostname))
+    r = requests.get("http://%s/q/peers?hostname=%s"%(controller, hostname));
+    return r.json()
+
+def synchronize (targetList):
+    targetChildren = {}
+    for params in targetList:
+        signature = "%s.%s:%s.%s:%s"%( params['mesh_name'], params['local_hostname'], params['local_ip'], params['peer_hostname'], params['peer_ip'])
+        targetChildren[signature] = True
+        if (signature not in children):
+            launchPing(signature, params)
+#        for key in params.keys():
+#            print (key)
+    for signature in list(children.keys()):
+        if signature not in targetChildren:
+            killPing (signature)
+
+def shutdown(sig, frame):
+    print ("Interrupt detected.  Cleaning up ...")
+    for signature in list(children.keys()):
+        killPing (signature)
+    print ("Done cleaning up.  Exiting")
+    sys.exit()
+
+def usage():
+    print("Usage: udping_controller -c <controller> [-h hostname] [-v] [-?]")
+    print("   -c: Central controller (host:port)")
+    print("   -h: Hostname")
+    print("   -v: Verbose")
+    print("   -?: Print this text")
+    sys.exit()
+
+try:
+    arguments, values = getopt.getopt(arglist, options)
+    for curarg,curval in arguments:
+        if curarg == "-v":
+            verbose = True
+        elif curarg == "-c":
+            controller = curval
+        elif curarg == "-h":
+            usage()
+except Exception as err:
+    print("Error: %s\n"%str(err))
+    usage()
+
+if controller == '':
+    usage()
+
+signal.signal(signal.SIGINT, shutdown)
+
+while (True):
+    targetList = update (controller, hostname)
+    synchronize (targetList)
+    time.sleep(1)
+
+
