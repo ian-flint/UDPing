@@ -1,0 +1,38 @@
+#!/usr/bin/python3
+
+import time
+import getopt
+import sys
+
+def usage():
+    print("Usage: pinger -a address -d delay_ms [-?]")
+    sys.exit()
+
+address = ''
+delay = 0
+
+arglist = sys.argv[1:]
+options = "a:d:?"
+
+try:
+    arguments, values = getopt.getopt(arglist, options)
+    for curarg,curval in arguments:
+        if curarg == "-a":
+            address = curval
+        if curarg == "-d":
+            delay = int(curval)
+
+except Exception as err:
+    print("Error: %s\n"%str(err))
+    usage()
+
+if address == '':
+    usage();
+
+if delay == 0:
+    usage();
+
+while (True):
+    print ("Ping %s"%address)
+    time.sleep(delay/1000)
+

@@ -29,9 +29,8 @@ def launchPing(signature, params):
 
     elif (pid == 0):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
-        while (True):
-            print ("Ping %s"%params['peer_ip'])
-            time.sleep(float(params["mesh_delay_ms"])/1000)
+        print (["./pinger", "pinger", "-a", params['peer_ip'], "-d", str(params['mesh_delay_ms'])])
+        os.execl("./pinger", "pinger", "-a", params['peer_ip'], "-d", str(params['mesh_delay_ms']))
 
 def killPing(signature):
     print ("Killing child %s"%signature)
