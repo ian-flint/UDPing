@@ -23,6 +23,7 @@ const queries = {
     "/r/deleteNodeMesh": {"query": "delete from node_mesh where node_id = ? or mesh_id = ?", "params": ["node_id", "mesh_id"], "defaults": {"node_id": "", "mesh_id": ""}},
     "/q/nodeMeshSelector": {"query": "select id as node_id, ip, hostname, mesh_id from node left outer join node_mesh on node.id = node_mesh.node_id and node_mesh.mesh_id=? order by mesh_id desc, hostname", "params": ["mesh_id"]},
     "/q/nodeMeshByNode": {"query": "select id as mesh_id, name, node_id from mesh left outer join node_mesh on mesh.id = node_mesh.mesh_id and node_mesh.node_id=? order by node_id desc, name", "params": ["node_id"]},
+    "/r/keepalive": {"query": "update node set last_seen = datetime('now') where hostname = ?", "params": ["hostname"]}
 }
 
 function api (req, res, callback) {

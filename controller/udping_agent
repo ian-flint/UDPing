@@ -9,10 +9,12 @@ import time
 import signal
 
 arglist = sys.argv[1:]
-options = "vc:h:?"
+options = "vc:h:p:k:?"
 
 controller = ''
 verbose = False
+polling_interval = 10
+keepalive_interval = 10
 hostname = os.uname().nodename
 
 children = {}
@@ -43,15 +45,19 @@ def update(controller, hostname):
     r = requests.get("http://%s/q/peers?hostname=%s"%(controller, hostname));
     return r.json()
 
+def keepalive (controller, hostname):
+    u = requests.get("http://%s/r/keepalive?hostname=%s"%(controller, hostname));
+    return
+
 def synchronize (targetList):
     targetChildren = {}
     for params in targetList:
         signature = "%s.%s:%s.%s:%s"%( params['mesh_name'], params['local_hostname'], params['local_ip'], params['peer_hostname'], params['peer_ip'])
         targetChildren[signature] = True
+        if (signature in children) and (params['mesh_delay_ms'] != children[signature]['mesh_delay_ms']):
+            killPing(signature)
         if (signature not in children):
             launchPing(signature, params)
-#        for key in params.keys():
-#            print (key)
     for signature in list(children.keys()):
         if signature not in targetChildren:
             killPing (signature)
@@ -64,8 +70,10 @@ def shutdown(sig, frame):
     sys.exit()
 
 def usage():
-    print("Usage: udping_controller -c <controller> [-h hostname] [-v] [-?]")
+    print("Usage: udping_controller -c <controller> [-h hostname] [-p polling_interval] [-k keepalive_interval] [-v] [-?]")
     print("   -c: Central controller (host:port)")
+    print("   -p: Polling interval in seconds (default: 10)")
+    print("   -k: Keepalive interval in seconds (default: 10)")
     print("   -h: Hostname")
     print("   -v: Verbose")
     print("   -?: Print this text")
@@ -89,9 +97,15 @@ if controller == '':
 
 signal.signal(signal.SIGINT, shutdown)
 
+now = 0
+
 while (True):
-    targetList = update (controller, hostname)
-    synchronize (targetList)
+    if not (now % polling_interval):
+        targetList = update (controller, hostname)
+        synchronize (targetList)
+    if not (now % keepalive_interval):
+        keepalive (controller, hostname)
     time.sleep(1)
+    now = int (time.time())
 
 

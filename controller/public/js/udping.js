@@ -56,11 +56,13 @@ function showNodes () {
             tr = $("<tr>");
             tr.append($("<th>").html("Hostname"));
             tr.append($("<th>").html("IP"));
+            tr.append($("<th>").html("Last Seen"));
             t.append(tr);
             for (row of json) {
                 tr = $("<tr>").attr("id", row.id);
                 tr.append($("<td>").html(row.hostname).attr("id", "hostname"));
                 tr.append($("<td>").html(row.ip).attr("id", "ip"));
+                tr.append($("<td>").html(row.last_seen).attr("last_seen", "ip"));
                 tr.append($("<td>").attr("id", "saveCancel")
                     .append($('<img src="images/edit.svg">').on("click", editNode))
                     .append($('<img src="images/file-text.svg">').on("click", editMeshesByNode))
@@ -134,7 +136,7 @@ function deleteMesh() {
 
 function editNode() {
     var cell = $(this).parent();
-    cell.parent().children(":not(#saveCancel)").each(makeEditable);
+    cell.parent().children(":not(#saveCancel, #last_seen)").each(makeEditable);
     cell.html("")
         .append($('<img src="images/check.svg">').on("click", updateNode))
         .append($('<img src="images/x.svg">').on("click", uneditNode))
@@ -147,7 +149,7 @@ function updateNode() {
     cell.html("")
             .append($('<img src="images/edit.svg">').on("click", editNode))
             .append($('<img src="images/file-text.svg">').on("click", editNode));
-    cell.siblings().each(makeUneditable).each((index, item)=>{
+    cell.siblings(":not(#last_seen)").each(makeUneditable).each((index, item)=>{
         obj[$(item).attr("id")] = $(item).html();
     });
     obj["node_id"] = cell.parent().attr("id");
@@ -164,7 +166,7 @@ function uneditNode() {
     cell.html("")
             .append($('<img src="images/edit.svg">').on("click", editNode))
             .append($('<img src="images/file-text.svg">').on("click", editNode));
-    cell.siblings().each(rollback);
+    cell.siblings(":not(#last_seen)").each(rollback);
 }
 function deleteNode() {
     var row = $(this).parent().parent();
@@ -211,7 +213,7 @@ function addNodeSave() {
     var that = this;
     cell.html("")
             .append($('<img src="images/edit.svg">').on("click", editNode));
-    cell.siblings().each(makeUneditable).each((index, item)=>{
+    cell.siblings(":not(#last_seen)").each(makeUneditable).each((index, item)=>{
         obj[$(item).attr("id")] = $(item).html();
     });
     $.ajax({
@@ -226,10 +228,11 @@ function addNode() {
     var tr = $("<tr>");
     tr.append($("<td>").attr("id", "hostname"));
     tr.append($("<td>").attr("id", "ip"));
+    tr.append($("<td>").attr("id", "last_seen"));
     tr.append($("<td>").attr("id", "saveCancel"));
     t.append(tr);
     $(this).parent().parent().before(tr);
-    tr.children(":not(#saveCancel)").each(makeEditable)
+    tr.children(":not(#saveCancel, #last_seen)").each(makeEditable)
     tr.children("#saveCancel").html("")
         .append($('<img src="images/check.svg">').on("click", addNodeSave))
         .append($('<img src="images/x.svg">').on("click", removeNewRow));

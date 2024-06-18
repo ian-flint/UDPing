@@ -13,7 +13,8 @@ create unique index mesh_name on mesh(name);
 create table node (
     id integer not null primary key,
     ip varchar(16) not null,
-    hostname varchar(128) not null
+    hostname varchar(128) not null,
+    last_seen datetime
 );
 
 create index node_ip on node (ip);
