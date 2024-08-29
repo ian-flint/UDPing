@@ -3,36 +3,100 @@
 import time
 import getopt
 import sys
+import subprocess
+import socket
+from opentelemetry import metrics
+from opentelemetry.sdk.metrics import (MeterProvider)
+from opentelemetry.sdk.metrics.export import (ConsoleMetricExporter, PeriodicExportingMetricReader)
+from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 
 def usage():
-    print("Usage: pinger -a address -d delay_ms [-?]")
+    print("Usage: pinger -a <address> -m <mesh name> [-i interval milliseconds] [-r <reporting frequency seconds] <[-?]")
     sys.exit()
 
 address = ''
-delay = 0
+interval = 1000
+report = 30
+verbose = False
+mesh_name = None
+
 
 arglist = sys.argv[1:]
-options = "a:d:?"
+options = "a:i:r:m:?v"
 
 try:
     arguments, values = getopt.getopt(arglist, options)
     for curarg,curval in arguments:
         if curarg == "-a":
             address = curval
-        if curarg == "-d":
-            delay = int(curval)
+        if curarg == "-i":
+            interval = int(curval)
+        if curarg == "-r":
+            report = int(curval)
+        if curarg == "-m":
+            mesh_name = curval
+        if curarg == "-v":
+            verbose = True
 
 except Exception as err:
     print("Error: %s\n"%str(err))
     usage()
 
 if address == '':
+    print ("Error: bad address")
     usage();
 
-if delay == 0:
+if interval < 1000:
+    print ("Error: bad interval")
     usage();
+
+interval /= 1000
+
+if report < interval:
+    print ("Error: reporting interval less than pinging interval")
+    usage()
+
+metric_reader = PeriodicExportingMetricReader(OTLPMetricExporter())
+provider = MeterProvider(metric_readers=[metric_reader])
+metrics.set_meter_provider(provider)
+m = metrics.get_meter("udping")
+grtt = m.create_gauge("pinger.rtt", "milliseconds", "Average Roundtrip Time")
+gsent = m.create_gauge("pinger.sent", "count", "Count of pings sent")
+greceived = m.create_gauge("pinger.received", "count", "Count of pings received")
+
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s.settimeout(0)
+try:
+    # doesn't even have to be reachable
+    s.connect((address, 1))
+    host = s.getsockname()[0]
+except Exception:
+    host = '127.0.0.1'
+finally:
+    s.close()
+
+count = int(report/interval)
 
 while (True):
-    print ("Ping %s"%address)
-    time.sleep(delay/1000)
+    lastsent = time.time()
+    command_vector = ["ping", "-c", str(count), "-i", str(interval), address]
+    if verbose:
+        print (' '.join(command_vector))
+    result = subprocess.run(command_vector, capture_output=True)
+    for line in result.stdout.decode('utf-8').split("\n"):
+        if line.find("received") > 0:
+            if verbose:
+                print (line)
+            fields = line.split()
+            gsent.set(int(fields[0]), {"source": host, "dest": address, "mesh": mesh_name})
+            greceived.set(int(fields[3]), {"source": host, "dest": address, "mesh": mesh_name})
+            
+        if line.find("rtt") == 0:
+            if verbose:
+                print (line)
+            rtt = line.split()[3].split("/")[1]
+            grtt.set(float(rtt), {"source": host, "dest": address, "mesh": mesh_name})
 
+    metric_reader.force_flush()
+    if time.time() < lastsent + interval:
+        time.sleep(interval + lastsent - time.time())
