@@ -33,7 +33,7 @@ function api (req, res, callback) {
 function query (req, res, callback) {
     var path = req.path;
     if (path in queries) {
-        console.log("Executing query " + path + ": " + queries[path].query);
+        // console.log("Executing query " + path + ": " + queries[path].query);
         var params = [];
         var query = queries[path].query;
         if ("updateFields" in queries[path]) {

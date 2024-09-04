@@ -76,7 +76,7 @@ ServerSession* ServerSessionManager::getServerSession (string peer, int port, pa
 void ServerSessionManager::sweepServerSessions () {
     int ix;
     time_t now = time(0);
-    for (map<string, ServerSession*>::iterator it = sessionMap.begin(); it != sessionMap.end(); it++) {
+    for (map<string, ServerSession*>::iterator it = sessionMap.begin(); it != sessionMap.end();) {
         ServerSession* ds = it->second;
         if (ds) {
             if (ds->getLastArrival() < now - keepalive) {
@@ -90,7 +90,9 @@ void ServerSessionManager::sweepServerSessions () {
                 }
                 ds->writeStats();
                 delete ds;
-                sessionMap.erase(it->first);
+                it = sessionMap.erase(it);
+            } else {
+                it++;
             }
         } else {
             break;
