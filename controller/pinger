@@ -61,8 +61,8 @@ provider = MeterProvider(metric_readers=[metric_reader])
 metrics.set_meter_provider(provider)
 m = metrics.get_meter("udping")
 grtt = m.create_gauge("pinger.rtt", "milliseconds", "Average Roundtrip Time")
-gsent = m.create_gauge("pinger.sent", "count", "Count of pings sent")
-greceived = m.create_gauge("pinger.received", "count", "Count of pings received")
+gsent = m.create_counter("pinger.sent", "count", "Count of pings sent")
+greceived = m.create_counter("pinger.received", "count", "Count of pings received")
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.settimeout(0)
@@ -88,8 +88,8 @@ while (True):
             if verbose:
                 print (line)
             fields = line.split()
-            gsent.set(int(fields[0]), {"source": host, "dest": address, "mesh": mesh_name})
-            greceived.set(int(fields[3]), {"source": host, "dest": address, "mesh": mesh_name})
+            gsent.add(int(fields[0]), {"source": host, "dest": address, "mesh": mesh_name})
+            greceived.add(int(fields[3]), {"source": host, "dest": address, "mesh": mesh_name})
             
         if line.find("rtt") == 0:
             if verbose:

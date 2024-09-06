@@ -23,11 +23,14 @@ children = {}
 def checkForOrphans():
     signatures = list(children.keys())
     dosync = False
+    ret = 0
     for signature in signatures:
         (pid, exit) = os.waitpid(children[signature]['pid'], os.WNOHANG)
         if pid > 0:
             print ("Detected terminated child %d"%pid)
             del children[signature]
+            ret = ret + 1
+    return ret
 
 
 def launchPing(signature, params):
@@ -127,7 +130,8 @@ while (True):
         synchronize (targetList)
     if not (now % keepalive_interval):
         keepalive (controller, hostname)
-    checkForOrphans()
+    if checkForOrphans() > 0:
+        synchronize (targetList)
     time.sleep(1)
     now = int (time.time())
 

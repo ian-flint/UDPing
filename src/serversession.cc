@@ -32,10 +32,10 @@ ServerSession::~ServerSession () {
     delete statsWriters;
 }
 
-void ServerSession::writeStats() {
+void ServerSession::writeStats(time_t now) {
     seqnum_t targetCount = 1 + maxSeq - minSeq;
     stats->setTargetCount(targetCount);
-    statsWriters->writeStats(stats);
+    statsWriters->writeStats(stats, now);
 }
 
 // This needs work to deal with out of order packets
@@ -88,7 +88,7 @@ void ServerSessionManager::sweepServerSessions () {
                         ds->recordSeq(successor->getMinSeq() - 1);
                     }
                 }
-                ds->writeStats();
+                ds->writeStats(now);
                 delete ds;
                 it = sessionMap.erase(it);
             } else {
@@ -134,7 +134,7 @@ int ServerSessionManager::readNextPacket (int fd) {
             if (remoteName) {
                 hostName = hostMap[remote.sin_addr.s_addr] = remoteName->h_name;
             } else {
-                hostName = hostMap[remote.sin_addr.s_addr] =  inet_ntoa(remote.sin_addr);
+                hostName = hostMap[remote.sin_addr.s_addr] = inet_ntoa(remote.sin_addr);
             }
         }
         receivePing (ph, &tv, hostName, ntohs(remote.sin_port));
