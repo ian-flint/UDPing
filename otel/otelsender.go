@@ -20,19 +20,13 @@ import (
     "go.opentelemetry.io/otel/metric"
 )
 
-
-
 type datapoint struct {
     from_host string
     to_host string
     count int
-    sum float64
-}
-
-func printTotals (datapointSummary *map[string]*datapoint) {
-    for k, v := range(*datapointSummary) {
-        fmt.Println(k, "count: ", v.count, "rtt", v.sum / float64(v.count))
-    }
+    targetCount int
+    rttCount int
+    rttSum float64
 }
 
 func check(e error) {
@@ -53,20 +47,45 @@ func main() {
     }()
     var meter = otel.Meter("udping")
     datapointSummary := make(map[string]*datapoint)
-    countMetric, err := meter.Int64Counter("count")
+    countMetric, err := meter.Int64ObservableCounter("count")
     check(err)
-    targetCountMetric, err := meter.Int64Counter("targetCount")
+    targetCountMetric, err := meter.Int64ObservableCounter("targetCount")
     check(err)
     rttMetric, err := meter.Float64ObservableGauge("rtt")
     check(err)
     _, err = meter.RegisterCallback(
         func(ctx context.Context, o metric.Observer) error {
             for _, v := range(datapointSummary) {
-                o.ObserveFloat64 (rttMetric, v.sum/float64(v.count), metric.WithAttributes(attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                if v.rttCount > 0 {
+                    o.ObserveFloat64 (rttMetric, v.rttSum/float64(v.rttCount), metric.WithAttributes(attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                    v.rttSum = 0
+                    v.rttCount = 0
+                }
             }
-            clear(datapointSummary)
             return nil
         }, rttMetric)
+    check(err)
+    _, err = meter.RegisterCallback(
+        func(ctx context.Context, o metric.Observer) error {
+            for _, v := range(datapointSummary) {
+                if v.count > 0 {
+                    o.ObserveInt64 (countMetric, int64(v.count), metric.WithAttributes(attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                    v.count = 0
+                }
+            }
+            return nil
+        }, countMetric)
+    check(err)
+    _, err = meter.RegisterCallback(
+        func(ctx context.Context, o metric.Observer) error {
+            for _, v := range(datapointSummary) {
+                if v.targetCount > 0 {
+                    o.ObserveInt64 (targetCountMetric, int64(v.targetCount), metric.WithAttributes(attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                    v.targetCount = 0
+                }
+            }
+            return nil
+        }, targetCountMetric)
     check(err)
 
     scanner := bufio.NewScanner(os.Stdin)
@@ -90,18 +109,16 @@ func main() {
             fmt.Fprintln(os.Stderr, "Error converting targetCount: ", err)
             continue
         }
-//        curTime := time.Now().Unix()
-        countMetric.Add(ctx, int64(count), metric.WithAttributes(attribute.String("from_host", obj["from_host"]), attribute.String("to_host", obj["to_host"])))
-        targetCountMetric.Add(ctx, int64(targetCount), metric.WithAttributes(attribute.String("from_host", obj["from_host"]), attribute.String("to_host", obj["to_host"])))
         key := obj["from_host"] + "-" + obj["to_host"]
         _, found := datapointSummary[key]
         if !found {
-            datapointSummary[key] = &datapoint{obj["from_host"], obj["to_host"], 0, 0}
+            datapointSummary[key] = &datapoint{obj["from_host"], obj["to_host"], 0, 0, 0, 0}
         }
+        datapointSummary[key].targetCount += targetCount
         datapointSummary[key].count += count
-        datapointSummary[key].sum += sum
+        datapointSummary[key].rttCount += count
+        datapointSummary[key].rttSum += sum
     }
-    printTotals(&datapointSummary)
 
 
     if err := scanner.Err(); err != nil {
