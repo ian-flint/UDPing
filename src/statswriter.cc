@@ -121,7 +121,7 @@ void StatsWriter::writeStats (string guid, string peer, int port, Stats *stats, 
 
 void StatsWriter::writeConsoleStats (string guid, string peer, int port, Stats* stats, time_t now) {
     printf ("{");
-    printf ("\"time\":\"%ld\"", now);
+    printf ("\"time\":\"%ld\",", now);
     printf ("\"from_host\":\"%s\",", peer.c_str());
     printf ("\"from_port\":\"%d\",", port);
     printf ("\"to_host\":\"%s\",", this->receive_hostname);
