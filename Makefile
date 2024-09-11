@@ -5,6 +5,8 @@ test:
 
 local:
 	cd src; make
+	cd otel; make
+	cd agent; make
 	mkdir -p bin
 	cp src/udping_client src/udping_server bin
 
