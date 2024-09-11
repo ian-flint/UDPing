@@ -43,7 +43,7 @@ func usage() {
 
 func main() {
     mesh := flag.String("mesh", "", "Mesh")
-    flag.parse()
+    flag.Parse()
     if *mesh == "" {
         usage()
     }
