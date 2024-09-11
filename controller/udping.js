@@ -20,6 +20,7 @@ app.get("/dbApi", (req, res) => {
 });
 
 app.get("/q/*", (req, res) => {
+//    console.log("Got request /q/");
     db.query(req, res, (response, status) => {
         res.status(status);
         res.send(response);
@@ -27,6 +28,7 @@ app.get("/q/*", (req, res) => {
 });
 
 app.get("/r/*", (req, res) => {
+//    console.log("Got request /r/");
     db.query(req, res, (response, status) => {
         res.status(status);
         res.send(response);

@@ -15,7 +15,7 @@ controller = ''
 verbose = False
 polling_interval = 10
 keepalive_interval = 10
-hostname = os.uname().nodename
+hostname = ''
 
 children = {}
 
@@ -45,8 +45,11 @@ def launchPing(signature, params):
 
     elif (pid == 0):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
-        print (["./pinger", "pinger", "-a", params['peer_ip'], "-i", str(int(params['mesh_delay_ms'])), "-r", str(int(params['mesh_reporting_interval_s'])), "-m", params["mesh_name"]])
-        os.execl("./pinger", "./pinger", "-a", params['peer_ip'], "-i", str(int(params['mesh_delay_ms'])), "-r", str(int(params['mesh_reporting_interval_s'])), "-m", params["mesh_name"])
+#        print (["./pinger", "pinger", "-a", params['peer_ip'], "-i", str(int(params['mesh_delay_ms'])), "-r", str(int(params['mesh_reporting_interval_s'])), "-m", params["mesh_name"]])
+#        os.execl("./pinger", "./pinger", "-a", params['peer_ip'], "-i", str(int(params['mesh_delay_ms'])), "-r", str(int(params['mesh_reporting_interval_s'])), "-m", params["mesh_name"])
+        print ("ping %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(params['peer_ip'], hostname, params['peer_ip'], params['mesh_name']))
+        os.system ("ping %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(params['peer_ip'], hostname, params['peer_ip'], params['mesh_name']))
+        sys.exit()
 
 def killPing(signature):
     print ("Killing child %s"%signature)
@@ -55,7 +58,7 @@ def killPing(signature):
     del children[signature]
 
 def update(controller, hostname, targetList):
-#    print ("Connecting to %s as %s"%(controller, hostname))
+    print ("Connecting to %s as %s"%(controller, hostname))
     try:
         r = requests.get("http://%s/q/peers?hostname=%s"%(controller, hostname));
     except:
@@ -94,7 +97,7 @@ def shutdown(sig, frame):
     sys.exit()
 
 def usage():
-    print("Usage: udping_controller -c <controller> [-h hostname] [-p polling_interval] [-k keepalive_interval] [-v] [-?]")
+    print("Usage: udping_controller -c <controller> -h <hostname> [-p polling_interval] [-k keepalive_interval] [-v] [-?]")
     print("   -c: Central controller (host:port)")
     print("   -p: Polling interval in seconds (default: 10)")
     print("   -k: Keepalive interval in seconds (default: 10)")
@@ -111,12 +114,14 @@ try:
         elif curarg == "-c":
             controller = curval
         elif curarg == "-h":
-            usage()
+            hostname = curval
 except Exception as err:
     print("Error: %s\n"%str(err))
     usage()
 
 if controller == '':
+    usage()
+if hostname == '':
     usage()
 
 signal.signal(signal.SIGINT, shutdown)
