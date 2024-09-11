@@ -7,6 +7,7 @@ import os
 import json
 import time
 import signal
+import subprocess
 
 arglist = sys.argv[1:]
 options = "vc:h:p:k:?"
@@ -19,6 +20,21 @@ hostname = ''
 
 children = {}
 
+for line in subprocess.run(["route"], capture_output=True).stdout.decode('utf-8').split('\n'):
+    fields = line.split()
+    if not fields:
+        continue
+    if (fields[0] == "default"):
+        nextHop = fields[1]
+
+for line in subprocess.run(["arp"], capture_output=True).stdout.decode('utf-8').split('\n'):
+    fields = line.split()
+    if not fields:
+        continue
+    if (fields[0] == nextHop):
+        mac = fields[2]
+
+print ("MAC address for next hop %s: %s"%(nextHop, mac))
 
 def checkForOrphans():
     signatures = list(children.keys())
@@ -45,13 +61,45 @@ def launchPing(signature, params):
 
     elif (pid == 0):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
-#        print (["./pinger", "pinger", "-a", params['peer_ip'], "-i", str(int(params['mesh_delay_ms'])), "-r", str(int(params['mesh_reporting_interval_s'])), "-m", params["mesh_name"]])
-#        os.execl("./pinger", "./pinger", "-a", params['peer_ip'], "-i", str(int(params['mesh_delay_ms'])), "-r", str(int(params['mesh_reporting_interval_s'])), "-m", params["mesh_name"])
-        print ("ping %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(params['peer_ip'], hostname, params['peer_ip'], params['mesh_name']))
-        os.system ("ping %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(params['peer_ip'], hostname, params['peer_ip'], params['mesh_name']))
+        print ("ping %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(params['peer_ip'], params['local_hostname'], params['peer_ip'], params['mesh_name']))
+        os.system ("ping %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(params['peer_ip'], params['local_hostname'], params['peer_ip'], params['mesh_name']))
         sys.exit()
 
-def killPing(signature):
+def launchUDPingClient(signature, params):
+    print ("Launching child %s"%signature)
+    pid = os.fork()
+    if (pid > 0):
+        print ("Launched child with pid %d"%pid)
+        print (params)
+        children[signature] = params
+        children[signature]['pid'] = pid
+        return
+
+    elif (pid == 0):
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        # sudo ./udping_client -r 10.0.0.243 -p 7000 -d 10 -l 10.0.0.243 -s 7000 -n 10 -i 30 -m 1400 -a 70:4d:7b:e3:63:a0
+        print ("./udping_client -r %s -p 7000 -d 10 -l %s -s 7000 -n 10 -i 30 -m 1400 -a %s"%(params['peer_ip'], params['local_ip'], mac))
+        os.system ("./udping_client -r %s -p 7000 -d 10 -l %s -s 7000 -n 10 -i 30 -m 1400 -a %s"%(params['peer_ip'], params['local_ip'], mac))
+        sys.exit()
+
+def launchUDPingServer(signature, params):
+    print ("Launching child %s"%signature)
+    pid = os.fork()
+    if (pid > 0):
+        print ("Launched child with pid %d"%pid)
+        print (params)
+        children[signature] = params
+        children[signature]['pid'] = pid
+        return
+
+    elif (pid == 0):
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        # ./udping_server -l <listen hostname> -p <port number> -k <keepalive interval seconds>
+        print ("./udping_server -l %s -p 7000 -k 1 | ./udping_otelsender -mesh=%s"%(params['local_ip'], params['mesh_name']))
+        os.system ("./udping_server -l %s -p 7000 -k 1 | ./udping_otelsender -mesh=%s"%(params['local_ip'], params['mesh_name']))
+        sys.exit()
+
+def killChild(signature):
     print ("Killing child %s"%signature)
     print (children[signature])
     os.kill(children[signature]['pid'], signal.SIGTERM)
@@ -78,21 +126,35 @@ def keepalive (controller, hostname):
 
 def synchronize (targetList):
     targetChildren = {}
+    # Add servers
     for params in targetList:
-        signature = "%s.%s:%s.%s:%s"%( params['mesh_name'], params['local_hostname'], params['local_ip'], params['peer_hostname'], params['peer_ip'])
-        targetChildren[signature] = True
+        signature = "%s:%s.%s:%s.%s:%s"%( params['mesh_mechanism'], params['mesh_name'], params['local_hostname'], params['local_ip'], params['peer_hostname'], params['peer_ip'])
+        targetChildren[signature] = params
+        if (params['mesh_mechanism'] == 'udping'):
+            server_signature = "udping_server:%s"%( params['mesh_name'])
+            targetChildren[server_signature] = params
+    for signature, params in targetChildren.items():
         if (signature in children) and (params['mesh_delay_ms'] != children[signature]['mesh_delay_ms']):
-            killPing(signature)
+            killChild(signature)
         if (signature not in children):
-            launchPing(signature, params)
+            mechanism = params['mesh_mechanism']
+            if (mechanism == 'ping'):
+                launchPing(signature, params)
+            elif (mechanism == 'udping'):
+                if (signature.find("udping_server") == 0):
+                    launchUDPingServer(signature, params)
+                else:
+                    launchUDPingClient(signature, params)
+            else:
+                print ("Unrecognized mechanism %s"%mechanism)
     for signature in list(children.keys()):
         if signature not in targetChildren:
-            killPing (signature)
+            killChild (signature)
 
 def shutdown(sig, frame):
     print ("Interrupt detected.  Cleaning up ...")
     for signature in list(children.keys()):
-        killPing (signature)
+        killChild (signature)
     print ("Done cleaning up.  Exiting")
     sys.exit()
 
@@ -123,6 +185,7 @@ if controller == '':
     usage()
 if hostname == '':
     usage()
+
 
 signal.signal(signal.SIGINT, shutdown)
 

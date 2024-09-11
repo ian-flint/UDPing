@@ -8,6 +8,7 @@ import (
     "strconv"
     "time"
     "os/signal"
+    "flag"
 
     "context"
     "errors"
@@ -35,7 +36,16 @@ func check(e error) {
     }
 }
 
+func usage() {
+    fmt.Println("Usage: udping_otelsender -mesh=<mesh>")
+    os.Exit(1)
+}
+
 func main() {
+    mesh := flag.String("mesh", "", "Mesh")
+    if *mesh == "" {
+        usage()
+    }
     ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
     defer stop()
     otelShutdown, err := setupOTelSDK(ctx)
@@ -57,7 +67,7 @@ func main() {
         func(ctx context.Context, o metric.Observer) error {
             for _, v := range(datapointSummary) {
                 if v.rttCount > 0 {
-                    o.ObserveFloat64 (rttMetric, v.rttSum/float64(v.rttCount), metric.WithAttributes(attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                    o.ObserveFloat64 (rttMetric, v.rttSum/float64(v.rttCount), metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
                     v.rttSum = 0
                     v.rttCount = 0
                 }
@@ -69,7 +79,7 @@ func main() {
         func(ctx context.Context, o metric.Observer) error {
             for _, v := range(datapointSummary) {
                 if v.count > 0 {
-                    o.ObserveInt64 (countMetric, int64(v.count), metric.WithAttributes(attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                    o.ObserveInt64 (countMetric, int64(v.count), metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
                     v.count = 0
                 }
             }
@@ -80,7 +90,7 @@ func main() {
         func(ctx context.Context, o metric.Observer) error {
             for _, v := range(datapointSummary) {
                 if v.targetCount > 0 {
-                    o.ObserveInt64 (targetCountMetric, int64(v.targetCount), metric.WithAttributes(attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                    o.ObserveInt64 (targetCountMetric, int64(v.targetCount), metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
                     v.targetCount = 0
                 }
             }

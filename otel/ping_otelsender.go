@@ -89,8 +89,6 @@ func main() {
         }, targetCountMetric)
     check(err)
 
-    // f, err := os.Open("ping.output")
-    // check(err)
     scanner := bufio.NewScanner(os.Stdin)
     // scanner := bufio.NewScanner(f)
     for scanner.Scan() {
