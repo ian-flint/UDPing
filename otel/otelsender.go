@@ -51,13 +51,13 @@ func main() {
     check(err)
     targetCountMetric, err := meter.Int64ObservableCounter("targetCount")
     check(err)
-    rttMetric, err := meter.Float64ObservableGauge("rtt")
+    rttMetric, err := meter.Float64ObservableGauge("latency")
     check(err)
     _, err = meter.RegisterCallback(
         func(ctx context.Context, o metric.Observer) error {
             for _, v := range(datapointSummary) {
                 if v.rttCount > 0 {
-                    o.ObserveFloat64 (rttMetric, v.rttSum/float64(v.rttCount), metric.WithAttributes(attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                    o.ObserveFloat64 (rttMetric, v.rttSum/float64(v.rttCount), metric.WithAttributes(attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
                     v.rttSum = 0
                     v.rttCount = 0
                 }
@@ -69,7 +69,7 @@ func main() {
         func(ctx context.Context, o metric.Observer) error {
             for _, v := range(datapointSummary) {
                 if v.count > 0 {
-                    o.ObserveInt64 (countMetric, int64(v.count), metric.WithAttributes(attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                    o.ObserveInt64 (countMetric, int64(v.count), metric.WithAttributes(attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
                     v.count = 0
                 }
             }
@@ -80,7 +80,7 @@ func main() {
         func(ctx context.Context, o metric.Observer) error {
             for _, v := range(datapointSummary) {
                 if v.targetCount > 0 {
-                    o.ObserveInt64 (targetCountMetric, int64(v.targetCount), metric.WithAttributes(attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                    o.ObserveInt64 (targetCountMetric, int64(v.targetCount), metric.WithAttributes(attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
                     v.targetCount = 0
                 }
             }
@@ -163,7 +163,7 @@ func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
 }
 
 func newMeterProvider(ctx context.Context) (*sdkmetric.MeterProvider, error) {
-    httpExporter, err := otlpmetrichttp.New(ctx)
+    httpExporter, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithInsecure())
     stdoutExporter, err := stdoutmetric.New()
     if err != nil {
         return nil, err
