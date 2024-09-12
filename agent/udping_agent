@@ -53,8 +53,8 @@ def launchPing(signature, params):
     print ("Launching child %s"%signature)
     pid = os.fork()
     if (pid > 0):
-        print ("Launched child with pid %d"%pid)
-        print (params)
+#        print ("Launched child with pid %d"%pid)
+#        print (params)
         children[signature] = params
         children[signature]['pid'] = pid
         return
@@ -69,8 +69,8 @@ def launchUDPingClient(signature, params):
     print ("Launching child %s"%signature)
     pid = os.fork()
     if (pid > 0):
-        print ("Launched child with pid %d"%pid)
-        print (params)
+#        print ("Launched child with pid %d"%pid)
+#        print (params)
         children[signature] = params
         children[signature]['pid'] = pid
         return
@@ -82,7 +82,7 @@ def launchUDPingClient(signature, params):
         sys.exit()
 
 def launchUDPingServer(signature, params):
-    print ("Launching child %s"%signature)
+#    print ("Launching child %s"%signature)
     pid = os.fork()
     if (pid > 0):
         print ("Launched child with pid %d"%pid)
@@ -99,7 +99,7 @@ def launchUDPingServer(signature, params):
 
 def killChild(signature):
     print ("Killing child %s"%signature)
-    print (children[signature])
+#    print (children[signature])
     killPidFamily(children[signature]['pid'])
     del children[signature]
 
@@ -114,6 +114,7 @@ def killPidFamily (pid):
         except:
             pass
     try:
+        print ("killing PID %d"%pid)
         os.kill(pid, signal.SIGTERM)
         os.waitpid(pid, 0)
     except:
