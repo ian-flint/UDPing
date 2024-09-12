@@ -62,7 +62,6 @@ def launchPing(signature, params):
     elif (pid == 0):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         print ("ping %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(params['peer_ip'], params['local_hostname'], params['peer_ip'], params['mesh_name']))
-        #subprocess.run ("ping %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(params['peer_ip'], params['local_hostname'], params['peer_ip'], params['mesh_name']), shell=True)
         subprocess.run ("ping %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(params['peer_ip'], params['local_hostname'], params['peer_ip'], params['mesh_name']), shell=True)
         sys.exit()
 
@@ -78,7 +77,6 @@ def launchUDPingClient(signature, params):
 
     elif (pid == 0):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
-        # sudo ./udping_client -r 10.0.0.243 -p 7000 -d 10 -l 10.0.0.243 -s 7000 -n 10 -i 30 -m 1400 -a 70:4d:7b:e3:63:a0
         print ("./udping_client -r %s -p 7000 -d 10 -l %s -s 7000 -n 10 -i 30 -m 1400 -a %s"%(params['peer_ip'], params['local_ip'], mac))
         subprocess.run ("./udping_client -r %s -p 7000 -d 10 -l %s -s 7000 -n 10 -i 30 -m 1400 -a %s"%(params['peer_ip'], params['local_ip'], mac), shell=True)
         sys.exit()
@@ -95,7 +93,6 @@ def launchUDPingServer(signature, params):
 
     elif (pid == 0):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
-        # ./udping_server -l <listen hostname> -p <port number> -k <keepalive interval seconds>
         print ("./udping_server -l %s -p 7000 -k 1 | ./udping_otelsender -mesh=%s"%(params['local_ip'], params['mesh_name']))
         subprocess.run ("./udping_server -l %s -p 7000 -k 1 | ./udping_otelsender -mesh=%s"%(params['local_ip'], params['mesh_name']), shell=True)
         sys.exit()
@@ -150,10 +147,10 @@ def synchronize (targetList):
         targetChildren[signature] = params
         if (params['mesh_mechanism'] == 'udping'):
             server_signature = "udping_server:%s"%( params['mesh_name'])
-            targetChildren[server_signature] = params
+            targetChildren[server_signature] = {"mesh_mechanism": "udping", "mesh_name": params['mesh_name'], "local_ip": params['local_ip']}
     for signature, params in targetChildren.items():
-        if (signature in children) and (params['mesh_delay_ms'] != children[signature]['mesh_delay_ms']):
-            killChild(signature)
+#        if (signature in children) and (params['mesh_delay_ms'] != children[signature]['mesh_delay_ms']):
+#            killChild(signature)
         if (signature not in children):
             mechanism = params['mesh_mechanism']
             if (mechanism == 'ping'):
