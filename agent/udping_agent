@@ -87,8 +87,8 @@ def launchUDPingClient(signature, params):
         else:
             print ("Next hop MAC is %s"%mac)
 
-        print ("./udping_client -r %s -p 7000 -d 10 -l %s -s 7000 -n 10 -i 30 -m 1400 -a %s"%(params['peer_ip'], params['local_ip'], mac))
-        subprocess.run ("./udping_client -r %s -p 7000 -d 10 -l %s -s 7000 -n 10 -i 30 -m 1400 -a %s"%(params['peer_ip'], params['local_ip'], mac), shell=True)
+        print ("./udping_client -r %s -p 7000 -d %s -l %s -s 7000 -n 10 -i %s -m 1400 -a %s"%(params['peer_ip'], params['mesh_delay_ms'], params['local_ip'], params['mesh_reporting_interval_s'], mac))
+        subprocess.run ("./udping_client -r %s -p 7000 -d %s -l %s -s 7000 -n 10 -i %s -m 1400 -a %s"%(params['peer_ip'], params['mesh_delay_ms'], params['local_ip'], params['mesh_reporting_interval_s'], mac), shell=True)
         sys.exit()
 
 def launchUDPingServer(signature, params):
