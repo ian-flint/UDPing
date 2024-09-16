@@ -20,22 +20,6 @@ hostname = ''
 
 children = {}
 
-for line in subprocess.run(["route"], capture_output=True).stdout.decode('utf-8').split('\n'):
-    fields = line.split()
-    if not fields:
-        continue
-    if (fields[0] == "default"):
-        nextHop = fields[1]
-
-for line in subprocess.run(["arp"], capture_output=True).stdout.decode('utf-8').split('\n'):
-    fields = line.split()
-    if not fields:
-        continue
-    if (fields[0] == nextHop):
-        mac = fields[2]
-
-print ("MAC address for next hop %s: %s"%(nextHop, mac))
-
 def checkForOrphans():
     signatures = list(children.keys())
     dosync = False
@@ -77,6 +61,32 @@ def launchUDPingClient(signature, params):
 
     elif (pid == 0):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
+        nextHop = ''
+        mac = ''
+        for line in subprocess.run(["ping", "-n", "-c", "1", "-t", "1", "-4", params['peer_ip']], capture_output=True).stdout.decode('utf-8').split('\n'):
+            print(line)
+            fields = line.split()
+            if line.find('Hop limit') > -1:
+                nextHop = fields[1]
+            elif line.find('bytes from') > -1:
+                nextHop = fields[3][0:-1]
+        if nextHop == '':
+            print ("Culd not determine next hop")
+            sys.exit()
+        else:
+            print ("Next hop is %s"%nextHop)
+        for line in subprocess.run(["arp", "-n"], capture_output=True).stdout.decode('utf-8').split('\n'):
+            fields = line.split()
+            if not fields:
+                continue
+            if (fields[0] == nextHop):
+                mac = fields[2]
+        if mac == '':
+            print ("Culd not determine next hop MAC")
+            sys.exit()
+        else:
+            print ("Next hop MAC is %s"%mac)
+
         print ("./udping_client -r %s -p 7000 -d 10 -l %s -s 7000 -n 10 -i 30 -m 1400 -a %s"%(params['peer_ip'], params['local_ip'], mac))
         subprocess.run ("./udping_client -r %s -p 7000 -d 10 -l %s -s 7000 -n 10 -i 30 -m 1400 -a %s"%(params['peer_ip'], params['local_ip'], mac), shell=True)
         sys.exit()
