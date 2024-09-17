@@ -110,25 +110,33 @@ def launchUDPingServer(signature, params):
 def killChild(signature):
     print ("Killing child %s"%signature)
 #    print (children[signature])
-    killPidFamily(children[signature]['pid'])
+    pstree = subprocess.run(["ps", "ajx"], capture_output=True).stdout.decode('utf-8').split('\n')
+    killPidFamily(children[signature]['pid'], pstree, False)
+    os.waitpid(children[signature]['pid'], 0)
     del children[signature]
 
-def killPidFamily (pid):
-    for line in subprocess.run(["ps", "aj"], capture_output=True).stdout.decode('utf-8').split('\n'):
+def killPidFamily (pid, pstree, killPid):
+    for line in pstree:
         fields = line.strip().split()
         if not fields:
             continue
         try:
             if (int(fields[0]) == pid):
-                killPidFamily(int(fields[1]))
+                if line.find ('udping_agent') < 0 and line.find ('/bin/sh') < 0:
+                    print ("Killing %s"%line)
+                    killPidFamily(int(fields[1]), pstree, True)
+                else:
+                    print ("Not killing %s"%line)
+                    killPidFamily(int(fields[1]), pstree, False)
         except:
             pass
-    try:
-        print ("killing PID %d"%pid)
-        os.kill(pid, signal.SIGTERM)
-        os.waitpid(pid, 0)
-    except:
-        pass
+    if killPid:
+        try:
+            print ("killing PID %d"%(pid))
+            os.kill(pid, signal.SIGKILL)
+            os.waitpid(pid, 0)
+        except:
+            pass
 
 
 def update(controller, hostname, targetList):
