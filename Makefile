@@ -4,11 +4,12 @@ test:
 	cd tests; make
 
 local:
+	mkdir -p bin
 	cd src; make
 	cd otel; make
 	cd agent; make
-	mkdir -p bin
 	cp src/udping_client src/udping_server bin
+	docker build -t udping_agent .
 
 clean:
 	cd src; make clean

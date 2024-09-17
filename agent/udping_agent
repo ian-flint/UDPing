@@ -160,8 +160,12 @@ def synchronize (targetList):
             server_signature = "udping_server:%s"%( params['mesh_name'])
             targetChildren[server_signature] = {"mesh_mechanism": "udping", "mesh_name": params['mesh_name'], "local_ip": params['local_ip']}
     for signature, params in targetChildren.items():
-#        if (signature in children) and (params['mesh_delay_ms'] != children[signature]['mesh_delay_ms']):
-#            killChild(signature)
+        if signature in children:
+            child = children[signature]
+            for key, value in params.items():
+                if key in child and child[key] != value:
+                    killChild(signature)
+                    break
         if (signature not in children):
             mechanism = params['mesh_mechanism']
             if (mechanism == 'ping'):
