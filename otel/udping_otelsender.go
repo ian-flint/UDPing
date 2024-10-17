@@ -9,6 +9,7 @@ import (
     "time"
     "os/signal"
     "flag"
+    "sync"
 
     "context"
     "errors"
@@ -24,7 +25,7 @@ import (
 type datapoint struct {
     from_host string
     to_host string
-    count int
+    dropCount int
     targetCount int
     rttCount int
     rttSum float64
@@ -43,6 +44,7 @@ func usage() {
 
 func main() {
     mesh := flag.String("mesh", "", "Mesh")
+    var mu sync.Mutex
     flag.Parse()
     if *mesh == "" {
         usage()
@@ -58,7 +60,7 @@ func main() {
     }()
     var meter = otel.Meter("udping")
     datapointSummary := make(map[string]*datapoint)
-    countMetric, err := meter.Int64ObservableCounter("count")
+    dropCountMetric, err := meter.Int64ObservableCounter("dropCount")
     check(err)
     targetCountMetric, err := meter.Int64ObservableCounter("targetCount")
     check(err)
@@ -66,35 +68,39 @@ func main() {
     check(err)
     _, err = meter.RegisterCallback(
         func(ctx context.Context, o metric.Observer) error {
+            mu.Lock()
             for _, v := range(datapointSummary) {
+                rtt := float64(0)
                 if v.rttCount > 0 {
-                    o.ObserveFloat64 (rttMetric, v.rttSum/float64(v.rttCount), metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
-                    v.rttSum = 0
-                    v.rttCount = 0
+                    rtt = v.rttSum/float64(v.rttCount)
                 }
+                o.ObserveFloat64 (rttMetric, rtt, metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                v.rttSum = 0
+                v.rttCount = 0
             }
+            mu.Unlock()
             return nil
         }, rttMetric)
     check(err)
     _, err = meter.RegisterCallback(
         func(ctx context.Context, o metric.Observer) error {
+            mu.Lock()
             for _, v := range(datapointSummary) {
-                if v.count > 0 {
-                    o.ObserveInt64 (countMetric, int64(v.count), metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
-                    v.count = 0
-                }
+                o.ObserveInt64 (dropCountMetric, int64(v.dropCount), metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                v.dropCount = 0
             }
+            mu.Unlock()
             return nil
-        }, countMetric)
+        }, dropCountMetric)
     check(err)
     _, err = meter.RegisterCallback(
         func(ctx context.Context, o metric.Observer) error {
+            mu.Lock()
             for _, v := range(datapointSummary) {
-                if v.targetCount > 0 {
-                    o.ObserveInt64 (targetCountMetric, int64(v.targetCount), metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
-                    v.targetCount = 0
-                }
+                o.ObserveInt64 (targetCountMetric, int64(v.targetCount), metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                v.targetCount = 0
             }
+            mu.Unlock()
             return nil
         }, targetCountMetric)
     check(err)
@@ -122,13 +128,15 @@ func main() {
         }
         key := obj["from_host"] + "-" + obj["to_host"]
         _, found := datapointSummary[key]
+        mu.Lock()
         if !found {
             datapointSummary[key] = &datapoint{obj["from_host"], obj["to_host"], 0, 0, 0, 0}
         }
         datapointSummary[key].targetCount += targetCount
-        datapointSummary[key].count += count
+        datapointSummary[key].dropCount += targetCount - count
         datapointSummary[key].rttCount += count
         datapointSummary[key].rttSum += sum
+        mu.Unlock()
     }
 
 

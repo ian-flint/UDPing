@@ -9,6 +9,7 @@ import (
     "os/signal"
     "strings"
     "flag"
+    "sync"
 
     "context"
     "errors"
@@ -36,6 +37,7 @@ func main() {
     from_host := flag.String("from_host", "", "From Host")
     to_host := flag.String("to_host", "", "To Host")
     mesh := flag.String("mesh", "", "Mesh")
+    var mu sync.Mutex
     flag.Parse()
     if *from_host == "" || *to_host == "" || *mesh == ""{
         usage()
@@ -51,10 +53,10 @@ func main() {
     }()
     var meter = otel.Meter("ping")
     targetCount := 0
-    count := 0
+    dropCount := 0
     rttCount := 0
     rttSum := float64(0)
-    countMetric, err := meter.Int64ObservableCounter("count")
+    dropCountMetric, err := meter.Int64ObservableCounter("dropCount")
     check(err)
     targetCountMetric, err := meter.Int64ObservableCounter("targetCount")
     check(err)
@@ -62,27 +64,33 @@ func main() {
     check(err)
     _, err = meter.RegisterCallback(
         func(ctx context.Context, o metric.Observer) error {
+            mu.Lock()
             rtt := float64(0)
             if rttCount > 0 {
                 rtt = rttSum / float64(rttCount)
-                rttSum = 0
-                rttCount = 0
             }
             o.ObserveFloat64 (rttMetric, rtt, metric.WithAttributes(attribute.String("test_type", "ping"), attribute.String("from_host", *from_host), attribute.String("to_host", *to_host), attribute.String("mesh", *mesh)))
+            rttSum = 0
+            rttCount = 0
+            mu.Unlock()
             return nil
         }, rttMetric)
     check(err)
     _, err = meter.RegisterCallback(
         func(ctx context.Context, o metric.Observer) error {
-            o.ObserveInt64 (countMetric, int64(count), metric.WithAttributes(attribute.String("test_type", "ping"), attribute.String("from_host", *from_host), attribute.String("to_host", *to_host), attribute.String("mesh", *mesh)))
-            count = 0
+            mu.Lock()
+            o.ObserveInt64 (dropCountMetric, int64(dropCount), metric.WithAttributes(attribute.String("test_type", "ping"), attribute.String("from_host", *from_host), attribute.String("to_host", *to_host), attribute.String("mesh", *mesh)))
+            dropCount = 0
+            mu.Unlock()
             return nil
-        }, countMetric)
+        }, dropCountMetric)
     check(err)
     _, err = meter.RegisterCallback(
         func(ctx context.Context, o metric.Observer) error {
+            mu.Lock()
             o.ObserveInt64 (targetCountMetric, int64(targetCount), metric.WithAttributes(attribute.String("test_type", "ping"), attribute.String("from_host", *from_host), attribute.String("to_host", *to_host), attribute.String("mesh", *mesh)))
             targetCount = 0
+            mu.Unlock()
             return nil
         }, targetCountMetric)
     check(err)
@@ -93,17 +101,19 @@ func main() {
         buf := scanner.Text()
         //fmt.Println(buf)
         if strings.Index(buf, "Unreachable") > -1 {
+            mu.Lock()
             targetCount += 1
-            fmt.Println ("Sent: 1, Received: 0")
+            dropCount += 1
+            mu.Unlock()
         } else if timeix := strings.Index(buf, "time="); timeix > -1 {
             field := strings.Split(buf[timeix:], " ")[0]
             rtt, err := strconv.ParseFloat(strings.Split(field, "=")[1], 64)
             check(err)
-            // fmt.Println(rtt)
+            mu.Lock()
             targetCount += 1
-            count += 1
             rttCount += 1
             rttSum += rtt
+            mu.Unlock()
         } else {
             fmt.Println(buf)
             fmt.Println("Ignore")
