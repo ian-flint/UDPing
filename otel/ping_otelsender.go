@@ -62,29 +62,27 @@ func main() {
     check(err)
     _, err = meter.RegisterCallback(
         func(ctx context.Context, o metric.Observer) error {
+            rtt := float64(0)
             if rttCount > 0 {
-                o.ObserveFloat64 (rttMetric, rttSum/float64(rttCount), metric.WithAttributes(attribute.String("test_type", "ping"), attribute.String("from_host", *from_host), attribute.String("to_host", *to_host), attribute.String("mesh", *mesh)))
+                rtt = rttSum / float64(rttCount)
                 rttSum = 0
                 rttCount = 0
             }
+            o.ObserveFloat64 (rttMetric, rtt, metric.WithAttributes(attribute.String("test_type", "ping"), attribute.String("from_host", *from_host), attribute.String("to_host", *to_host), attribute.String("mesh", *mesh)))
             return nil
         }, rttMetric)
     check(err)
     _, err = meter.RegisterCallback(
         func(ctx context.Context, o metric.Observer) error {
-            if count > 0 {
-                o.ObserveInt64 (countMetric, int64(count), metric.WithAttributes(attribute.String("test_type", "ping"), attribute.String("from_host", *from_host), attribute.String("to_host", *to_host), attribute.String("mesh", *mesh)))
-                count = 0
-            }
+            o.ObserveInt64 (countMetric, int64(count), metric.WithAttributes(attribute.String("test_type", "ping"), attribute.String("from_host", *from_host), attribute.String("to_host", *to_host), attribute.String("mesh", *mesh)))
+            count = 0
             return nil
         }, countMetric)
     check(err)
     _, err = meter.RegisterCallback(
         func(ctx context.Context, o metric.Observer) error {
-            if targetCount > 0 {
-                o.ObserveInt64 (targetCountMetric, int64(targetCount), metric.WithAttributes(attribute.String("test_type", "ping"), attribute.String("from_host", *from_host), attribute.String("to_host", *to_host), attribute.String("mesh", *mesh)))
-                targetCount = 0
-            }
+            o.ObserveInt64 (targetCountMetric, int64(targetCount), metric.WithAttributes(attribute.String("test_type", "ping"), attribute.String("from_host", *from_host), attribute.String("to_host", *to_host), attribute.String("mesh", *mesh)))
+            targetCount = 0
             return nil
         }, targetCountMetric)
     check(err)

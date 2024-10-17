@@ -82,7 +82,7 @@ def launchUDPingClient(signature, params):
             if (fields[0] == nextHop):
                 mac = fields[2]
         if mac == '':
-            print ("Culd not determine next hop MAC")
+            print ("Could not determine next hop MAC")
             sys.exit()
         else:
             print ("Next hop MAC is %s"%mac)
