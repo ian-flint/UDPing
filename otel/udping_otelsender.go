@@ -10,6 +10,7 @@ import (
     "os/signal"
     "flag"
     "sync"
+    "crypto/tls"
 
     "context"
     "errors"
@@ -164,7 +165,8 @@ func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
 }
 
 func newMeterProvider(ctx context.Context) (*sdkmetric.MeterProvider, error) {
-    httpExporter, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithInsecure())
+    //httpExporter, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithInsecure())
+    httpExporter, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}))
     if err != nil {
         return nil, err
     }
