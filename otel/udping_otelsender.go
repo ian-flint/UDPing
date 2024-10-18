@@ -16,7 +16,6 @@ import (
 
     "go.opentelemetry.io/otel"
     "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
-    "go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
     sdkmetric "go.opentelemetry.io/otel/sdk/metric"
     "go.opentelemetry.io/otel/attribute"
     "go.opentelemetry.io/otel/metric"
@@ -60,9 +59,9 @@ func main() {
     }()
     var meter = otel.Meter("udping")
     datapointSummary := make(map[string]*datapoint)
-    dropCountMetric, err := meter.Int64ObservableCounter("dropCount")
+    dropCountMetric, err := meter.Int64ObservableGauge("dropCount")
     check(err)
-    targetCountMetric, err := meter.Int64ObservableCounter("targetCount")
+    targetCountMetric, err := meter.Int64ObservableGauge("targetCount")
     check(err)
     rttMetric, err := meter.Float64ObservableGauge("latency")
     check(err)
@@ -74,35 +73,18 @@ func main() {
                 if v.rttCount > 0 {
                     rtt = v.rttSum/float64(v.rttCount)
                 }
+                fmt.Printf("%s: UDPing: %s:%s:%s %d:%d:%f\n", time.Now(), *mesh, v.from_host, v.to_host, v.targetCount, v.dropCount, rtt)
                 o.ObserveFloat64 (rttMetric, rtt, metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                o.ObserveInt64 (dropCountMetric, int64(v.dropCount), metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
+                o.ObserveInt64 (targetCountMetric, int64(v.targetCount), metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
                 v.rttSum = 0
                 v.rttCount = 0
-            }
-            mu.Unlock()
-            return nil
-        }, rttMetric)
-    check(err)
-    _, err = meter.RegisterCallback(
-        func(ctx context.Context, o metric.Observer) error {
-            mu.Lock()
-            for _, v := range(datapointSummary) {
-                o.ObserveInt64 (dropCountMetric, int64(v.dropCount), metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
                 v.dropCount = 0
-            }
-            mu.Unlock()
-            return nil
-        }, dropCountMetric)
-    check(err)
-    _, err = meter.RegisterCallback(
-        func(ctx context.Context, o metric.Observer) error {
-            mu.Lock()
-            for _, v := range(datapointSummary) {
-                o.ObserveInt64 (targetCountMetric, int64(v.targetCount), metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
                 v.targetCount = 0
             }
             mu.Unlock()
             return nil
-        }, targetCountMetric)
+        }, rttMetric, dropCountMetric, targetCountMetric)
     check(err)
 
     scanner := bufio.NewScanner(os.Stdin)
@@ -183,12 +165,11 @@ func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
 
 func newMeterProvider(ctx context.Context) (*sdkmetric.MeterProvider, error) {
     httpExporter, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithInsecure())
-    stdoutExporter, err := stdoutmetric.New()
     if err != nil {
         return nil, err
     }
 
-    meterProvider := sdkmetric.NewMeterProvider( sdkmetric.WithReader(sdkmetric.NewPeriodicReader(httpExporter, sdkmetric.WithInterval(30*time.Second))), sdkmetric.WithReader(sdkmetric.NewPeriodicReader(stdoutExporter, sdkmetric.WithInterval(30*time.Second))))
+    meterProvider := sdkmetric.NewMeterProvider( sdkmetric.WithReader(sdkmetric.NewPeriodicReader(httpExporter, sdkmetric.WithInterval(30*time.Second))))
     return meterProvider, nil
 }
 
