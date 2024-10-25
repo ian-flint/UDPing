@@ -20,6 +20,8 @@ hostname = ''
 
 children = {}
 
+os.system("env")
+
 def checkForOrphans():
     signatures = list(children.keys())
     dosync = False
