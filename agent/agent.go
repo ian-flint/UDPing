@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -27,16 +28,18 @@ type target struct {
 type tlist []target
 
 type child struct {
-	cmd *exec.Cmd
-	t   target
+	cmd       *exec.Cmd
+	senderCmd *exec.Cmd
+	t         target
 }
 
 type cmap map[string]*child
 
 func main() {
 	var children cmap = make(cmap)
+	var targets cmap = make(cmap) // temporary variable to hold the last version retrieved from the server.
 	for {
-		children.synchronize()
+		targets = children.synchronize(targets)
 		time.Sleep(time.Second)
 	}
 }
@@ -53,52 +56,67 @@ func getNextHop(target string) string {
 	return nextHop
 }
 
-func (c *child) launch() {
-	//for {
+func (c *child) launch(children cmap, key string) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		log.Print("Failed to open pipe: ", err)
+	}
+	defer r.Close()
 	ctx, _ := context.WithCancel(context.Background())
-	c.cmd = exec.CommandContext(ctx, "ping", "-c", "1000", "10.0.0.1")
+	c.cmd = exec.CommandContext(ctx, "ping", "-c", "1000", c.t.PeerIp)
+	c.cmd.Stdout = w
+	log.Print(c.cmd)
 	c.cmd.Start()
+	c.senderCmd = exec.CommandContext(ctx, "./ping_otelsender", fmt.Sprintf("-from_host=%s", c.t.LocalHostname), fmt.Sprintf("-to_host=%s", c.t.PeerHostname), fmt.Sprintf("-mesh=%s", c.t.MeshName))
+	c.senderCmd.Stdin = r
+	c.senderCmd.Stdout = os.Stdout
+	log.Print(c.senderCmd)
+	c.senderCmd.Start()
 	// fmt.Printf("%#v\n", c)
 	log.Print("Ping started, PID is ", c.cmd.Process.Pid)
+	log.Print("Sender started, PID is ", c.senderCmd.Process.Pid)
+	go func() {
+		c.senderCmd.Wait()
+		c.cmd.Cancel()
+	}()
 	c.cmd.Wait()
-	if context.Cause(ctx) == context.Canceled {
-		log.Print("Subprocess canceled.")
-	} else {
-		log.Print("Subprocess terminated.")
-	}
-	//}
+	c.senderCmd.Cancel()
+	// log.Print(ctx)
+	log.Print("Subprocesses terminated.")
+	delete(children, key)
 }
 
-func (children cmap) synchronize() {
+func (children cmap) synchronize(oldTargets cmap) cmap {
 	targets, err := getTargets("apricot:8008", "apricot")
 	if err != nil {
 		log.Print("Error retrieving targets: ", err)
-	} else {
-		for key, child := range targets {
-			_, ok := children[key]
-			if !ok {
-				log.Print("Adding " + key + " to children")
-				go child.launch()
-				children[key] = child
-			}
-		}
-		for key, child := range children {
-			_, ok := targets[key]
-			if !ok {
-				log.Print("Removing " + key + " from children")
-				// fmt.Printf("%#v\n", child)
-				child.cmd.Cancel()
-				delete(children, key)
-			}
+		targets = oldTargets
+	}
+	for key, child := range targets {
+		_, ok := children[key]
+		if !ok {
+			log.Print("Adding " + key + " to children")
+			go child.launch(children, key)
+			children[key] = child
 		}
 	}
+	for key, child := range children {
+		_, ok := targets[key]
+		if !ok {
+			log.Print("Removing " + key + " from children")
+			// fmt.Printf("%#v\n", child)
+			child.cmd.Cancel()
+			child.senderCmd.Cancel()
+		}
+	}
+	return targets
 }
 
 func getTargets(controller string, hostname string) (cmap, error) {
 	var targetList tlist
 	var ret cmap = make(cmap)
 	url := "http://" + controller + "/q/peers?hostname=" + hostname
-	log.Print("Retrieving " + url)
+	//log.Print("Retrieving " + url)
 	resp, err := http.Get(url)
 	if err != nil {
 		return ret, errors.New(fmt.Sprintf("Error retrieving config: %s", err))
@@ -110,18 +128,16 @@ func getTargets(controller string, hostname string) (cmap, error) {
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return ret, errors.New(fmt.Sprintf("Error reading body: %s", err))
-		log.Print("Error reading body: ", err)
 	}
 	// fmt.Println(string(data))
 	err = json.Unmarshal(data, &targetList)
 	if err != nil {
 		return ret, errors.New(fmt.Sprintf("Error unmarshaling: %s", err))
-		log.Print("Error unmarshaling: ", err)
 	}
 	// fmt.Println(targetList)
 	for _, target := range targetList {
 		key := fmt.Sprintf("%s:%s.%s:%s.%s:%s", target.MeshMechanism, target.MeshName, target.LocalHostname, target.LocalIp, target.PeerHostname, target.PeerIp)
-		ret[key] = &child{nil, target}
+		ret[key] = &child{nil, nil, target}
 	}
 	return ret, nil
 }
