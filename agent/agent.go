@@ -141,26 +141,3 @@ func getTargets(controller string, hostname string) (cmap, error) {
 	}
 	return ret, nil
 }
-
-//[
-//  {
-//    "local_ip": "10.0.0.243",
-//    "local_hostname": "apricot",
-//    "mesh_name": "pingTest",
-//    "mesh_mechanism": "ping",
-//    "mesh_delay_ms": 1000,
-//    "mesh_reporting_interval_s": 10,
-//    "peer_ip": "10.0.0.241",
-//    "peer_hostname": "ian-jetson"
-//  },
-//  {
-//    "local_ip": "10.0.0.243",
-//    "local_hostname": "apricot",
-//    "mesh_name": "pingTest",
-//    "mesh_mechanism": "ping",
-//    "mesh_delay_ms": 1000,
-//    "mesh_reporting_interval_s": 10,
-//    "peer_ip": "10.0.0.240",
-//    "peer_hostname": "kiwi"
-//  }
-//]
