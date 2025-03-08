@@ -98,8 +98,9 @@ func (children cmap) synchronize(oldTargets cmap) cmap {
 		_, ok := children[key]
 		if !ok {
 			log.Print("Adding " + key + " to children")
-			go child.launch(children, key)
+			// Do this before the goroutine to make sure the launch won't be repeated.
 			children[key] = child
+			go child.launch(children, key)
 		}
 	}
 	for key, child := range children {
