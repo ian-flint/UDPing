@@ -75,13 +75,15 @@ func (c *child) launch(children cmap, key string) {
 	// fmt.Printf("%#v\n", c)
 	log.Print("Ping started, PID is ", c.cmd.Process.Pid)
 	log.Print("Sender started, PID is ", c.senderCmd.Process.Pid)
+
+	// When one dies, kill the other and let the synchronizer restart both
 	go func() {
 		c.senderCmd.Wait()
 		c.cmd.Cancel()
 	}()
 	c.cmd.Wait()
 	c.senderCmd.Cancel()
-	// log.Print(ctx)
+
 	log.Print("Subprocesses terminated.")
 	delete(children, key)
 }
