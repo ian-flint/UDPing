@@ -70,7 +70,8 @@ struct sockaddr* getSockAddr (string host, int port) {
 
     snprintf (portString, 100, "%d", port);
 
-    if (s = getaddrinfo (host.c_str(), portString, &hints, &addrinfo)) {
+    //if (s = getaddrinfo (host.c_str(), portString, &hints, &addrinfo)) {
+    if (s = getaddrinfo (host.c_str(), 0, &hints, &addrinfo)) {
         err(1, "getaddrinfo: %s\n", gai_strerror(s));
     } else {
         ret = new struct sockaddr;
