@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/python3
 
 import requests
 import getopt
@@ -47,8 +47,12 @@ def launchPing(signature, params):
 
     elif (pid == 0):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
-        print ("ping %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(params['peer_ip'], params['local_hostname'], params['peer_ip'], params['mesh_name']))
-        subprocess.run ("ping %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(params['peer_ip'], params['local_hostname'], params['peer_ip'], params['mesh_name']), shell=True)
+        print (params)
+        delay = float(params['mesh_delay_ms'])/1000
+        if delay < 0.2:
+            delay = 0.2
+        print ("ping -i %f %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(delay, params['peer_ip'], params['local_hostname'], params['peer_ip'], params['mesh_name']))
+        subprocess.run ("ping -i %f %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(delay, params['peer_ip'], params['local_hostname'], params['peer_ip'], params['mesh_name']), shell=True)
         sys.exit()
 
 def launchUDPingClient(signature, params):
@@ -142,7 +146,8 @@ def killPidFamily (pid, pstree, killPid):
 
 
 def update(controller, hostname, targetList):
-    print ("Connecting to %s as %s"%(controller, hostname))
+    if verbose:
+        print ("Fetching update from %s as %s"%(controller, hostname))
     try:
         r = requests.get("http://%s/q/peers?hostname=%s"%(controller, hostname));
     except:
@@ -150,9 +155,13 @@ def update(controller, hostname, targetList):
         return targetList
     if r.status_code == 200:
         return r.json()
+    else:
+        print ("Query returned status %s. Keeping existing target list"%r.status_code)
     return targetList
 
 def keepalive (controller, hostname):
+    if verbose:
+        print ("Sending keepalive to %s as %s"%(controller, hostname))
     try:
         u = requests.get("http://%s/r/keepalive?hostname=%s"%(controller, hostname));
     except:
