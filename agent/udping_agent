@@ -49,10 +49,10 @@ def launchPing(signature, params):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         print (params)
         delay = float(params['mesh_delay_ms'])/1000
-        if delay < 0.2:
-            delay = 0.2
-        print ("ping -i %f %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(delay, params['peer_ip'], params['local_hostname'], params['peer_ip'], params['mesh_name']))
-        subprocess.run ("ping -i %f %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(delay, params['peer_ip'], params['local_hostname'], params['peer_ip'], params['mesh_name']), shell=True)
+        if delay < 1:
+            delay = 1
+        print ("ping -O -i %f %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(delay, params['peer_ip'], params['local_hostname'], params['peer_ip'], params['mesh_name']))
+        subprocess.run ("ping -O -i %f %s | ./ping_otelsender -from_host=%s -to_host=%s -mesh=%s"%(delay, params['peer_ip'], params['local_hostname'], params['peer_ip'], params['mesh_name']), shell=True)
         sys.exit()
 
 def launchUDPingClient(signature, params):

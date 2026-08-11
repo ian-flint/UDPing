@@ -84,30 +84,60 @@ func main() {
     check(err)
 
     scanner := bufio.NewScanner(os.Stdin)
-    // scanner := bufio.NewScanner(f)
+    // ringBuf is zero if no misses or a response has been received, nonzero if there are misses
+    var ringBuf [1024]int
+    curSeq := 0
     for scanner.Scan() {
         buf := scanner.Text()
         //fmt.Println(buf)
-        if strings.Index(buf, "Unreachable") > -1 {
-            mu.Lock()
-            targetCount += 1
-            dropCount += 1
-            mu.Unlock()
+        seq_ix := strings.Index(buf, "icmp_seq=")
+        icmpSeq := 0
+        if seq_ix == -1 {
+            fmt.Println(buf)
+            fmt.Println("Ignoring line without icmp sequence")
+            continue
+        } else {
+            tmp, _ := strconv.ParseInt(strings.Split(strings.Split(buf[seq_ix:], " ")[0], "=")[1], 10, 16)
+            icmpSeq = int(tmp)
+        }
+        //fmt.Println("ICMP Sequence = ", icmpSeq)
+        icmpSeq %= 1024
+        // reset the ring buffer space if this is a new sequence
+        if icmpSeq > curSeq || curSeq - icmpSeq > 1000 {
+            ringBuf[icmpSeq] = 0
+            curSeq = icmpSeq
+        }
+        if (strings.Index(buf, "no answer yet") > -1) ||
+           (strings.Index(buf, "Unreachable") > -1) ||
+           (strings.Index(buf, "No route to host") > -1) {
+            if ringBuf[icmpSeq] == 0 {
+                mu.Lock()
+                targetCount += 1
+                dropCount += 1
+                mu.Unlock()
+                ringBuf[icmpSeq] = 1
+                //fmt.Println("Incrementing drop count")
+            }
         } else if timeix := strings.Index(buf, "time="); timeix > -1 {
             field := strings.Split(buf[timeix:], " ")[0]
             rtt, err := strconv.ParseFloat(strings.Split(field, "=")[1], 64)
             check(err)
             mu.Lock()
-            targetCount += 1
             rttCount += 1
             rttSum += rtt
+            //fmt.Println("Incrementing rtt count")
+            if ringBuf[icmpSeq] == 0 {
+                targetCount += 1
+            } else {
+                dropCount -= 1
+                //fmt.Println("Decrementing drop count")
+            }
             mu.Unlock()
         } else {
             fmt.Println(buf)
-            fmt.Println("Ignore")
+            fmt.Println("Ignoring unknown status line")
         }
     }
-
 
     if err := scanner.Err(); err != nil {
         fmt.Fprintln(os.Stderr, "Error: ", err)
