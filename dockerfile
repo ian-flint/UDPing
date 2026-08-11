@@ -5,6 +5,7 @@ WORKDIR /usr/src/app
 RUN apt update
 RUN apt install -y net-tools
 RUN apt install -y iputils-ping
+RUN apt update
 RUN apt install -y python3-requests
 RUN ln -sf /usr/share/zoneinfo/PST8PDT /etc/localtime
 
