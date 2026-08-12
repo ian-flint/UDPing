@@ -105,8 +105,13 @@ void ServerSessionManager::receivePing (packet* ph, struct timespec* rcvd, strin
     ServerSession* ds = getServerSession(peer, port, ph);
     ds->setLastArrival(time(0));
     ds->recordSeq(ph->seqNum);
-    double elapsed = 1000000000L * (rcvd->tv_sec - ph->sent_sec + 1) + rcvd->tv_nsec - ph->sent_nsec;
-    ds->getStats()->addDataPoint ((elapsed - 1000000000L)/1000000);
+    double elapsed = rcvd->tv_nsec;
+    elapsed -= ph->sent_nsec;
+    elapsed /= 1000000000L;
+    elapsed += rcvd->tv_sec;
+    elapsed -= ph->sent_sec;
+    //double elapsed = rcvd->tv_sec - ph->sent_sec + (rcvd->tv_nsec - ph->sent_nsec)/1000000000L;
+    ds->getStats()->addDataPoint (elapsed);
     sweepServerSessions();
 }
 
