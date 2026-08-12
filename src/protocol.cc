@@ -182,7 +182,7 @@ int buildFrame (struct frame *etherFrame, uint8_t *srcMac, uint8_t *dstMac, uint
 uint16_t checksum (uint16_t *addr, int len)
 {
   int count = len;
-  register uint32_t sum = 0;
+  uint32_t sum = 0;
   uint16_t answer = 0;
 
   // Sum up 2-byte values until none or only one byte left.
@@ -212,7 +212,7 @@ uint16_t checksum (uint16_t *addr, int len)
 // This is a zero-copy rewrite of udp4 checksumming algorithm.
 uint16_t udp4_checksum2 (struct ip iphdr, struct udphdr udphdr, uint16_t *payload, int payloadlen)
 {
-    register uint32_t sum = 0;
+    uint32_t sum = 0;
 
     sum += (iphdr.ip_src.s_addr & 0xffff);
     sum += (iphdr.ip_src.s_addr >> 16);
