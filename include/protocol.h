@@ -19,7 +19,7 @@ typedef struct {
     char guid[MAX_GUID + 1];
     seqnum_t seqNum; // This should be some flavor of uint so that the math works out when it wraps.
     uint32_t sent_sec;
-    uint32_t sent_nsec;
+    uint64_t sent_nsec;
     uint32_t size;
 } __attribute__((aligned(4))) packet;
 

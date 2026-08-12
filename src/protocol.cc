@@ -29,7 +29,7 @@ void dumpBuffer (char* buf) {
         return;
     }
     packet* ph = (packet*) buf;
-    printf ("%s:%ld:%d - %d:%d\n", ph->guid, ph->clientStartTime, ph->seqNum, ph->sent_sec, ph->sent_nsec);
+    printf ("%s:%d:%d - %d:%ld\n", ph->guid, ph->clientStartTime, ph->seqNum, ph->sent_sec, ph->sent_nsec);
 }
 
 int makeSocket (string host, int port) {
