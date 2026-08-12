@@ -44,6 +44,7 @@ func usage() {
 
 func main() {
     mesh := flag.String("mesh", "", "Mesh")
+    reportingInterval := flag.Int("reporting_interval", 10, "Reporting Interval")
     var mu sync.Mutex
     flag.Parse()
     if *mesh == "" {
@@ -51,7 +52,7 @@ func main() {
     }
     ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
     defer stop()
-    otelShutdown, err := setupOTelSDK(ctx)
+    otelShutdown, err := setupOTelSDK(ctx, *reportingInterval)
     if err != nil {
         return
     }
@@ -60,9 +61,9 @@ func main() {
     }()
     var meter = otel.Meter("udping")
     datapointSummary := make(map[string]*datapoint)
-    dropCountMetric, err := meter.Int64ObservableGauge("dropCount")
+    dropCountMetric, err := meter.Int64ObservableCounter("dropCount")
     check(err)
-    targetCountMetric, err := meter.Int64ObservableGauge("targetCount")
+    targetCountMetric, err := meter.Int64ObservableCounter("targetCount")
     check(err)
     rttMetric, err := meter.Float64ObservableGauge("latency")
     check(err)
@@ -80,8 +81,6 @@ func main() {
                 o.ObserveInt64 (targetCountMetric, int64(v.targetCount), metric.WithAttributes(attribute.String("mesh", *mesh), attribute.String("test_type", "udping"), attribute.String("from_host", v.from_host), attribute.String("to_host", v.to_host)))
                 v.rttSum = 0
                 v.rttCount = 0
-                v.dropCount = 0
-                v.targetCount = 0
             }
             mu.Unlock()
             return nil
@@ -132,7 +131,7 @@ func main() {
 
 // setupOTelSDK bootstraps the OpenTelemetry pipeline.
 // If it does not return an error, make sure to call shutdown for proper cleanup.
-func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, err error) {
+func setupOTelSDK(ctx context.Context, reportingInterval int) (shutdown func(context.Context) error, err error) {
     var shutdownFuncs []func(context.Context) error
 
     // shutdown calls cleanup functions registered via shutdownFuncs.
@@ -153,7 +152,7 @@ func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
     }
 
     // Set up meter provider.
-    meterProvider, err := newMeterProvider(ctx)
+    meterProvider, err := newMeterProvider(ctx, reportingInterval)
     if err != nil {
         handleErr(err)
         return
@@ -164,14 +163,14 @@ func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
     return
 }
 
-func newMeterProvider(ctx context.Context) (*sdkmetric.MeterProvider, error) {
+func newMeterProvider(ctx context.Context, reportingInterval int) (*sdkmetric.MeterProvider, error) {
     //httpExporter, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithInsecure())
     httpExporter, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}))
     if err != nil {
         return nil, err
     }
 
-    meterProvider := sdkmetric.NewMeterProvider( sdkmetric.WithReader(sdkmetric.NewPeriodicReader(httpExporter, sdkmetric.WithInterval(30*time.Second))))
+    meterProvider := sdkmetric.NewMeterProvider( sdkmetric.WithReader(sdkmetric.NewPeriodicReader(httpExporter, sdkmetric.WithInterval(time.Duration(reportingInterval)*time.Second))))
     return meterProvider, nil
 }
 
