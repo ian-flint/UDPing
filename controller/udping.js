@@ -19,7 +19,7 @@ app.get("/dbApi", (req, res) => {
     });
 });
 
-app.get("/q/*", (req, res) => {
+app.get("/q/:operation", (req, res) => {
 //    console.log("Got request /q/");
     db.query(req, res, (response, status) => {
         res.status(status);
@@ -27,7 +27,7 @@ app.get("/q/*", (req, res) => {
     });
 });
 
-app.get("/r/*", (req, res) => {
+app.get("/r/:operation", (req, res) => {
 //    console.log("Got request /r/");
     db.query(req, res, (response, status) => {
         res.status(status);

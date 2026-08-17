@@ -9,7 +9,7 @@ RUN apt install -y sqlite3
 RUN apt update
 RUN ln -sf /usr/share/zoneinfo/PST8PDT /etc/localtime
 RUN npm install -g npm@12.0.2
-RUN npm install express@4
+RUN npm install express
 RUN npm install sqlite3 --ignore-scripts=false
 RUN npm install-scripts approve sqlite3
 RUN npm uninstall sqlite3
