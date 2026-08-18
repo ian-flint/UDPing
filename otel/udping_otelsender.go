@@ -90,6 +90,7 @@ func main() {
     scanner := bufio.NewScanner(os.Stdin)
     for scanner.Scan() {
         buf := scanner.Text()
+        //fmt.Printf("%s\n", buf)
         var obj map[string]string
         err := json.Unmarshal([]byte(buf), &obj)
         check(err)
@@ -111,6 +112,7 @@ func main() {
         key := obj["from_host"] + "-" + obj["to_host"]
         _, found := datapointSummary[key]
         mu.Lock()
+        //fmt.Printf("Saving stats\n")
         if !found {
             datapointSummary[key] = &datapoint{obj["from_host"], obj["to_host"], 0, 0, 0, 0}
         }
